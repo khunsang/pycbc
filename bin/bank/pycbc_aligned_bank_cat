@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/cvmfs/oasis.opensciencegrid.org/ligo/sw/pycbc/x86_64_rhel_7/virtualenv/pycbc-v1.16.9/bin/python
 
 # Copyright (C) 2013 Ian W. Harry
 #
@@ -28,6 +28,7 @@ import argparse
 import numpy
 import pycbc.version
 import h5py
+from six.moves import range
 from glue.ligolw import ligolw
 from glue.ligolw import lsctables
 from glue.ligolw import utils
@@ -39,6 +40,8 @@ import pycbc.strain
 import pycbc.version
 import pycbc.tmpltbank
 from pycbc.waveform import get_waveform_filter_length_in_time
+from lal.utils.cache import CacheEntry
+from ligo.lw.utils import local_path_from_url
 
 __author__  = "Ian Harry <ian.harry@astro.cf.ac.uk>"
 __version__ = pycbc.version.git_verbose_msg
@@ -56,8 +59,15 @@ parser.add_argument("--verbose", action="store_true", default=False,
                     help="verbose output")
 parser.add_argument("-i", "--input-glob",
                     help="file glob the list of paramters")
-parser.add_argument("-I", "--input-files", nargs='+',
-                    help="Explicit list of input files.")
+# mutually exclusive argument for "--input-files" and "--input-files-cache"
+group = parser.add_mutually_exclusive_group()
+group.add_argument("-I", "--input-files", nargs='+',
+                    help="Explicit list of input files." 
+                    "['--input-files' and '--input-files-cache' are mutually exclusive]")
+group.add_argument("-C", "--input-files-cache", action='append', 
+                    help="Explicit list of input files from a LAL cache."
+                    "['--input-files' and '--input-files-cache' are mutually exclusive]")
+
 parser.add_argument("-o", "--output-file",  help="Output file name")
 parser.add_argument('--f-low-column', type=str, metavar='NAME',
                     help='If given, store the lower frequency cutoff into '
@@ -65,6 +75,9 @@ parser.add_argument('--f-low-column', type=str, metavar='NAME',
 parser.add_argument("-m", "--metadata-file", metavar="METADATA_FILE",
                   help="XML file containing the process and process_params "
                   "tables that the aligned_bank code was run with.")
+
+
+
 
 # Insert the metric calculation options
 tmpltbank.insert_metric_calculation_options(parser)
@@ -136,10 +149,17 @@ metricParams = tmpltbank.determine_eigen_directions(metricParams,
 # Read in template params
 # NOTE: Files must be set out so that the columns are:
 # Mass1, Mass2, Spin1z, Spin2z
+
+print ("options.input_files_cache",options.input_files_cache)
+
 if options.input_files:
     input_files = options.input_files
+elif options.input_files_cache:
+    input_files_cache = [CacheEntry(line).url for cache in options.input_files_cache for line in open(cache)]
+    input_files = [ local_path_from_url(url) for url in input_files_cache ]
 else:
     input_files = glob.glob(options.input_glob)
+
 
 mass1 = []
 mass2 = []
@@ -186,7 +206,7 @@ elif options.output_file.endswith(('.h5','.hdf','.hdf5')):
     out_fp['spin2z'] = temp_bank[:,3]
     out_fp['f_lower'] = [options.f_low] * len(temp_bank[:,0])
     tmplt_durations = []
-    for i in xrange(len(temp_bank[:,0])):
+    for i in range(len(temp_bank[:,0])):
         gwflit = get_waveform_filter_length_in_time
         wfrm_length = gwflit('SPAtmplt', mass1=temp_bank[i,0],
                              mass2=temp_bank[i,1], f_lower=options.f_low,
