@@ -25,12 +25,23 @@
 """ This package provides information about LIGO/Virgo detections of
 compact binary mergers
 """
+
+import os
 import numpy
 from . import catalog
 
+_aliases = {}
+_aliases['mchirp'] = 'chirp_mass_source'
+_aliases['mass1'] = 'mass_1_source'
+_aliases['mass2'] = 'mass_2_source'
+_aliases['snr'] = 'network_matched_filter_snr'
+_aliases['z'] = _aliases['redshift'] = 'redshift'
+_aliases['distance'] = 'luminosity_distance'
+
+
 class Merger(object):
     """Informaton about a specific compact binary merger"""
-    def __init__(self, name):
+    def __init__(self, name, source='gwtc-1'):
         """ Return the information of a merger
 
         Parameters
@@ -38,13 +49,31 @@ class Merger(object):
         name: str
             The name (GW prefixed date) of the merger event.
         """
-        self.data = catalog.data[name]
+        try:
+            self.data = catalog.get_source(source)[name]
+        except KeyError:
+            # Try common name
+            data = catalog.get_source(source)
+            for mname in data:
+                cname = data[mname]['commonName']
+                if cname == name:
+                    name = mname
+                    self.data = data[name]
+                    break
+            else:
+                raise ValueError('Did not find merger matching'
+                                 ' name: {}'.format(name))
 
         # Set some basic params from the dataset
-        for key in self.data['median1d']:
-            setattr(self, key, self.data['median1d'][key][0])
+        for key in self.data:
+            setattr(self, '_raw_' + key, self.data[key])
 
-        self.time = self.data['time']
+        for key in _aliases:
+            setattr(self, key, self.data[_aliases[key]])
+
+        self.common_name = self.data['commonName']
+        self.time = self.data['GPS']
+        self.frame = 'source'
 
     def median1d(self, name, return_errors=False):
         """ Return median 1d marginalized parameters
@@ -62,12 +91,22 @@ class Merger(object):
         param: float or tuple
             The requested parameter
         """
-        if return_errors:
-            return self.data['median1d'][name]
-        else:
-            return self.data['median1d'][name][0]
+        if name in _aliases:
+            name = _aliases[name]
 
-    def strain(self, ifo):
+        try:
+            if return_errors:
+                mid = self.data[name]
+                high = self.data[name + '_upper']
+                low = self.data[name + '_lower']
+                return (mid, low, high)
+            else:
+                return self.data[name]
+        except KeyError as e:
+            print(e)
+            raise RuntimeError("Cannot get parameter {}".format(name))
+
+    def strain(self, ifo, duration=32, sample_rate=4096):
         """ Return strain around the event
 
         Currently this will return the strain around the event in the smallest
@@ -86,27 +125,54 @@ class Merger(object):
         from astropy.utils.data import download_file
         from pycbc.frame import read_frame
 
-        channel = '%s:LOSC-STRAIN' % ifo
-        url = self.data['frames'][ifo]
+        if sample_rate == 4096:
+            sampling = "4KHz"
+        elif sample_rate == 16384:
+            sampling = "16KHz"
+
+        for fdict in self.data['strain']:
+            if (fdict['detector'] == ifo and fdict['duration'] == duration and
+                    fdict['sampling_rate'] == sample_rate and
+                    fdict['format'] == 'gwf'):
+                url = fdict['url']
+                break
+
+        ver = url.split('/')[-1].split('-')[1].split('_')[-1]
+        channel = "{}:GWOSC-{}_{}_STRAIN".format(ifo, sampling.upper(), ver)
+
         filename = download_file(url, cache=True)
-        return read_frame(filename, channel)
+        return read_frame(str(filename), str(channel))
+
 
 class Catalog(object):
     """Manage a set of binary mergers"""
-    def __init__(self):
+
+    def __init__(self, source='gwtc-1'):
         """ Return the set of detected mergers
 
         The set of detected mergers. At some point this may have some selection
         abilities.
         """
-        self.mergers = {name: Merger(name) for name in catalog.data}
+        self.data = catalog.get_source(source=source)
+        self.mergers = {name: Merger(name,
+                                     source=source) for name in self.data}
         self.names = self.mergers.keys()
 
     def __len__(self):
         return len(self.mergers)
 
     def __getitem__(self, key):
-        return self.mergers[key]
+        try:
+            return self.mergers[key]
+        except KeyError:
+            # Try common name
+            for m in self.mergers:
+                if key == self.mergers[m].common_name:
+                    break
+            else:
+                raise ValueError('Did not find merger matching'
+                                 ' name: {}'.format(key))
+            return self.mergers[m]
 
     def __setitem__(self, key, value):
         self.mergers[key] = value
@@ -133,7 +199,8 @@ class Catalog(object):
         param: nump.ndarray or tuple
             The requested parameter
         """
-        v = [self.mergers[m].median1d(param, return_errors=return_errors) for m in self.mergers]
+        v = [self.mergers[m].median1d(param, return_errors=return_errors)
+             for m in self.mergers]
         if return_errors:
             value, merror, perror = zip(*v)
             return numpy.array(value), numpy.array(merror), numpy.array(perror)

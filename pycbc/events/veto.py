@@ -3,8 +3,7 @@ segment.
 """
 import numpy
 from glue.ligolw import table, lsctables, utils as ligolw_utils
-from glue.segments import segment, segmentlist
-
+from ligo.segments import segment, segmentlist
 
 def start_end_to_segments(start, end):
     return segmentlist([segment(s, e) for s, e in zip(start, end)])
@@ -66,7 +65,7 @@ def indices_within_times(times, start, end):
     if len(left) == 0:
         return numpy.array([], dtype=numpy.uint32)
 
-    return tsort[numpy.hstack(numpy.r_[s:e] for s, e in zip(left, right))]
+    return tsort[numpy.hstack([numpy.r_[s:e] for s, e in zip(left, right)])]
 
 def indices_outside_times(times, start, end):
     """

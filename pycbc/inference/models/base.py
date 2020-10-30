@@ -27,9 +27,9 @@
 
 import numpy
 import logging
-
 from abc import (ABCMeta, abstractmethod)
-
+from six.moves.configparser import NoSectionError
+from six import (add_metaclass, string_types)
 from pycbc import (transforms, distributions)
 from pycbc.io import FieldArray
 
@@ -60,7 +60,7 @@ class ModelStats(object):
     @property
     def statnames(self):
         """Returns the names of the stats that have been stored."""
-        return self.__dict__.keys()
+        return list(self.__dict__.keys())
 
     def getstats(self, names, default=numpy.nan):
         """Get the requested stats as a tuple.
@@ -120,6 +120,8 @@ class SamplingTransforms(object):
                                 if arg not in replace_parameters]
         # add the sampling parameters
         self.sampling_params += sampling_params
+        # sort to make sure we have a consistent order
+        self.sampling_params.sort()
         self.sampling_transforms = sampling_transforms
 
     def logjacobian(self, **params):
@@ -206,11 +208,14 @@ class SamplingTransforms(object):
         SamplingTransforms
             A sampling transforms class.
         """
-        if not cp.has_section('sampling_params'):
-            raise ValueError("no sampling_params section found in config file")
+        # Check if a sampling_params section is provided
+        try:
+            sampling_params, replace_parameters = \
+                read_sampling_params_from_config(cp)
+        except NoSectionError as e:
+            logging.warning("No sampling_params section read from config file")
+            raise e
         # get sampling transformations
-        sampling_params, replace_parameters = \
-            read_sampling_params_from_config(cp)
         sampling_transforms = transforms.read_transforms_from_config(
             cp, 'sampling_transforms')
         logging.info("Sampling in {} in place of {}".format(
@@ -269,7 +274,7 @@ def read_sampling_params_from_config(cp, section_group=None,
         map_args = cp.get(section, args)
         sampling_params.update(set(map(str.strip, map_args.split(','))))
         replaced_params.update(set(map(str.strip, args.split(','))))
-    return list(sampling_params), list(replaced_params)
+    return sorted(sampling_params), sorted(replaced_params)
 
 
 #
@@ -281,6 +286,7 @@ def read_sampling_params_from_config(cp, section_group=None,
 #
 
 
+@add_metaclass(ABCMeta)
 class BaseModel(object):
     r"""Base class for all models.
 
@@ -330,6 +336,13 @@ class BaseModel(object):
     sampling_transforms : list, optional
         List of transforms to use to go between the ``variable_params`` and the
         sampling parameters. Required if ``sampling_params`` is not None.
+    waveform_transforms : list, optional
+        A list of transforms to convert the ``variable_params`` into something
+        understood by the likelihood model. This is useful if the prior is
+        more easily parameterized in parameters that are different than what
+        the likelihood is most easily defined in. Since these are used solely
+        for converting parameters, and not for rescaling the parameter space,
+        a Jacobian is not required for these transforms.
 
     Properties
     ----------
@@ -347,13 +360,12 @@ class BaseModel(object):
     logplr :
         A function that returns the log of the prior-weighted likelihood ratio.
     """
-    __metaclass__ = ABCMeta
     name = None
 
     def __init__(self, variable_params, static_params=None, prior=None,
-                 sampling_transforms=None):
+                 sampling_transforms=None, waveform_transforms=None):
         # store variable and static args
-        if isinstance(variable_params, basestring):
+        if isinstance(variable_params, string_types):
             variable_params = (variable_params,)
         if not isinstance(variable_params, tuple):
             variable_params = tuple(variable_params)
@@ -368,8 +380,9 @@ class BaseModel(object):
             assert prior.variable_args == variable_params, (
                 "variable params of prior and model must be the same")
             self.prior_distribution = prior
-        # store sampling transforms
+        # store transforms
         self.sampling_transforms = sampling_transforms
+        self.waveform_transforms = waveform_transforms
         # initialize current params to None
         self._current_params = None
         # initialize a model stats
@@ -404,6 +417,8 @@ class BaseModel(object):
         If any sampling transforms are specified, they are applied to the
         params before being stored.
         """
+        # add the static params
+        params.update(self.static_params)
         self._current_params = self._transform_params(**params)
         self._current_stats = ModelStats()
 
@@ -466,8 +481,8 @@ class BaseModel(object):
         """
         return self._current_stats.getstatsdict(self.default_stats)
 
-    def _trytoget(self, statname, fallback, **kwargs):
-        """Helper function to get a stat from ``_current_stats``.
+    def _trytoget(self, statname, fallback, apply_transforms=False, **kwargs):
+        r"""Helper function to get a stat from ``_current_stats``.
 
         If the statistic hasn't been calculated, ``_current_stats`` will raise
         an ``AttributeError``. In that case, the ``fallback`` function will
@@ -480,6 +495,9 @@ class BaseModel(object):
             The stat to get from ``current_stats``.
         fallback : method of self
             The function to call if the property call fails.
+        apply_transforms : bool, optional
+            Apply waveform transforms to the current parameters before calling
+            the fallback function. Default is False.
         \**kwargs :
             Any other keyword arguments are passed through to the function.
 
@@ -491,6 +509,11 @@ class BaseModel(object):
         try:
             return getattr(self._current_stats, statname)
         except AttributeError:
+            # apply waveform transforms if requested
+            if apply_transforms and self.waveform_transforms is not None:
+                self._current_params = transforms.apply_transforms(
+                    self._current_params, self.waveform_transforms,
+                    inverse=False)
             val = fallback(**kwargs)
             setattr(self._current_stats, statname, val)
             return val
@@ -503,7 +526,8 @@ class BaseModel(object):
         If that raises an ``AttributeError``, will call `_loglikelihood`` to
         calculate it and store it to ``current_stats``.
         """
-        return self._trytoget('loglikelihood', self._loglikelihood)
+        return self._trytoget('loglikelihood', self._loglikelihood,
+                              apply_transforms=True)
 
     @abstractmethod
     def _loglikelihood(self):
@@ -599,7 +623,7 @@ class BaseModel(object):
         return p0
 
     def _transform_params(self, **params):
-        """Applies all transforms to the given params.
+        """Applies sampling transforms and boundary conditions to parameters.
 
         Parameters
         ----------
@@ -696,7 +720,8 @@ class BaseModel(object):
         """Helper function for loading parameters.
 
         This retrieves the prior, variable parameters, static parameterss,
-        constraints, and sampling transforms.
+        constraints, sampling transforms, and waveform transforms
+        (if provided).
 
         Parameters
         ----------
@@ -707,7 +732,9 @@ class BaseModel(object):
         -------
         dict :
             Dictionary of the arguments. Has keys ``variable_params``,
-            ``static_params``, ``prior``, and ``sampling_transforms``.
+            ``static_params``, ``prior``, and ``sampling_transforms``. If
+            waveform transforms are in the config file, will also have
+            ``waveform_transforms``.
         """
         section = "model"
         prior_section = "prior"
@@ -733,12 +760,15 @@ class BaseModel(object):
         try:
             sampling_transforms = SamplingTransforms.from_config(
                 cp, variable_params)
-        except ValueError:
+        except NoSectionError:
             sampling_transforms = None
         args['sampling_transforms'] = sampling_transforms
-        # get any other keyword arguments provided
-        args.update(cls.extra_args_from_config(cp, section,
-                                               skip_args=['name']))
+        # get any waveform transforms
+        if any(cp.get_subsections('waveform_transforms')):
+            logging.info("Loading waveform transforms")
+            args['waveform_transforms'] = \
+                transforms.read_transforms_from_config(
+                    cp, 'waveform_transforms')
         return args
 
     @classmethod
@@ -754,6 +784,9 @@ class BaseModel(object):
             provided keyword will over ride what is in the config file.
         """
         args = cls._init_args_from_config(cp)
+        # get any other keyword arguments provided in the model section
+        args.update(cls.extra_args_from_config(cp, "model",
+                                               skip_args=['name']))
         args.update(kwargs)
         return cls(**args)
 

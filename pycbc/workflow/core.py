@@ -26,9 +26,14 @@ This module provides the worker functions and classes that are used when
 creating a workflow. For details about the workflow module see here:
 https://ldas-jobs.ligo.caltech.edu/~cbc/docs/pycbc/ahope.html
 """
-import sys, os, stat, subprocess, logging, math, string, urlparse, urllib
-import ConfigParser, copy
-import numpy, cPickle, random
+import sys, os, stat, subprocess, logging, math, string
+from six.moves import configparser as ConfigParser
+from six.moves import urllib
+from six.moves.urllib.request import pathname2url
+from six.moves.urllib.parse import urljoin
+from six.moves import cPickle
+import copy
+import numpy, random
 from itertools import combinations, groupby, permutations
 from operator import attrgetter
 from six import string_types
@@ -36,11 +41,12 @@ import lal
 import lal.utils
 import Pegasus.DAX3
 from glue import lal as gluelal
-from glue import segments
+from ligo import segments
 from glue.ligolw import table, lsctables, ligolw
 from glue.ligolw import utils as ligolw_utils
 from glue.ligolw.utils import segments as ligolw_segments
 from glue.ligolw.utils import process as ligolw_process
+from pycbc import makedir
 from pycbc.workflow.configuration import WorkflowConfigParser, resolve_url
 from pycbc.workflow import pegasus_workflow
 
@@ -79,14 +85,6 @@ def make_analysis_dir(path):
     if path is not None:
         makedir(os.path.join(path, 'logs'))
 
-def makedir(path):
-    """
-    Make the analysis directory path and any parent directories that don't
-    already exist. Will do nothing if path already exists.
-    """
-    if path is not None and not os.path.exists(path):
-        os.makedirs(path)
-
 def is_condor_exec(exe_path):
     """
     Determine if an executable is condor-compiled
@@ -101,7 +99,7 @@ def is_condor_exec(exe_path):
     truth_value  : boolean
         Return True if the exe is condor compiled, False otherwise.
     """
-    if check_output(['nm', '-a', exe_path]).find('condor') != -1:
+    if str(check_output(['nm', '-a', exe_path])).find('condor') != -1:
         return True
     else:
         return False
@@ -124,6 +122,16 @@ class Executable(pegasus_workflow.Executable):
     # file_input_options = ['--psd-file, '--bank-file'] (as an example)
     file_input_options = []
 
+    # Set this parameter to indicate that this option should take different
+    # values based on the time. E.g. something like
+    # --option1 value1[0:1000],value2[1000:2000]
+    # would be replaced with --option1 value1 if the time is within 0,1000 and
+    # value2 if in 1000,2000. A failure will be replaced if the job time is
+    # not fully contained in one of these windows, or if fully contained in
+    # multiple of these windows. This is resolved when creating the Job from
+    # the Executable
+    time_dependent_options = []
+
     # This is the default value. It will give a warning if a class is
     # used where the retention level is not set. The file will still be stored
     KEEP_BUT_RAISE_WARNING = 5
@@ -133,7 +141,8 @@ class Executable(pegasus_workflow.Executable):
     # file will be retained, but a warning given
     current_retention_level = KEEP_BUT_RAISE_WARNING
     def __init__(self, cp, name,
-                 universe=None, ifos=None, out_dir=None, tags=None):
+                 universe=None, ifos=None, out_dir=None, tags=None,
+                 reuse_executable=True):
         """
         Initialize the Executable class.
 
@@ -161,6 +170,7 @@ class Executable(pegasus_workflow.Executable):
         else:
             self.ifo_list = ifos
         if self.ifo_list is not None:
+            self.ifo_list = sorted(self.ifo_list)
             self.ifo_string = ''.join(self.ifo_list)
         else:
             self.ifo_string = None
@@ -182,6 +192,12 @@ class Executable(pegasus_workflow.Executable):
 
         # Determine the level at which output files should be kept
         self.update_current_retention_level(self.current_retention_level)
+
+        # Should I reuse this executable?
+        if reuse_executable:
+            self.pegasus_name = self.name
+        else:
+            self.pegasus_name = self.tagged_name
 
         # Determine if this executables should be run in a container
         try:
@@ -213,12 +229,12 @@ class Executable(pegasus_workflow.Executable):
                                                     imagesite=self.container_site,
                                                     mount=self.container_mount)
 
-            super(Executable, self).__init__(self.tagged_name,
+            super(Executable, self).__init__(self.pegasus_name,
                                              installed=self.installed,
                                              container=self.container_cls)
 
         else:
-            super(Executable, self).__init__(self.tagged_name,
+            super(Executable, self).__init__(self.pegasus_name,
                                              installed=self.installed)
 
         self._set_pegasus_profile_options()
@@ -229,7 +245,7 @@ class Executable(pegasus_workflow.Executable):
         exe_path = cp.get('executables', name)
         self.needs_fetching = False
 
-        exe_url = urlparse.urlparse(exe_path)
+        exe_url = urllib.parse.urlparse(exe_path)
 
         # See if the user specified a list of sites for the executable
         try:
@@ -253,8 +269,8 @@ class Executable(pegasus_workflow.Executable):
                 self.needs_fetching = True
 
             self.add_pfn(exe_path, site=exe_site)
-            logging.debug("Using %s executable "
-                          "at %s on site %s" % (name, exe_url.path, exe_site))
+            logging.info("Using %s executable "
+                         "at %s on site %s" % (name, exe_url.path, exe_site))
 
         # Determine the condor universe if we aren't given one
         if self.universe is None:
@@ -263,8 +279,9 @@ class Executable(pegasus_workflow.Executable):
             else:
                 self.universe = 'vanilla'
 
-        logging.debug("%s executable will run as %s universe"
-                     % (name, self.universe))
+        if not self.universe == 'vanilla':
+            logging.info("%s executable will run as %s universe"
+                         % (name, self.universe))
 
         self.set_universe(self.universe)
 
@@ -300,7 +317,7 @@ class Executable(pegasus_workflow.Executable):
             if namespace == 'pycbc' or namespace == 'container':
                 continue
 
-            value = string.strip(cp.get(sec, opt))
+            value = cp.get(sec, opt).strip()
             key = opt.split('|')[1]
             self.add_profile(namespace, key, value, force=True)
 
@@ -319,38 +336,59 @@ class Executable(pegasus_workflow.Executable):
             The section containing options for this job.
         """
         for opt in cp.options(sec):
-            value = string.strip(cp.get(sec, opt))
+            value = cp.get(sec, opt).strip()
             opt = '--%s' %(opt,)
             if opt in self.file_input_options:
                 # This now expects the option to be a file
                 # Check is we have a list of files
                 values = [path for path in value.split(' ') if path]
-                dax_reprs = []
+
+                self.common_raw_options.append(opt)
+                self.common_raw_options.append(' ')
 
                 # Get LFN and PFN
                 for path in values:
-                    curr_lfn = os.path.basename(path)
+                    # Here I decide if the path is URL or
+                    # IFO:/path/to/file or IFO:url://path/to/file
+                    # That's somewhat tricksy as we used : as delimiter
+                    split_path = path.split(':', 1)
+                    if len(split_path) == 1:
+                        ifo = None
+                        path = path
+                    else:
+                        # Have I split a URL or not?
+                        if split_path[1].startswith('//'):
+                            # URL
+                            ifo = None
+                            path = path
+                        else:
+                            #IFO:path or IFO:URL
+                            ifo = split_path[0]
+                            path = split_path[1]
 
                     # If the file exists make sure to use the
                     # fill path as a file:// URL
                     if os.path.isfile(path):
-                        curr_pfn = urlparse.urljoin('file:',
-                                    urllib.pathname2url(
-                                    os.path.abspath(path))) 
+                        curr_pfn = urljoin('file:',
+                                           pathname2url(os.path.abspath(path)))
                     else:
-                        curr_pfn = value
+                        curr_pfn = path
 
-                    if curr_lfn in file_input_from_config_dict.keys():
-                        file_pfn = file_input_from_config_dict[curr_lfn][0]
-                        assert(file_pfn == curr_pfn)
-                        curr_file = file_input_from_config_dict[curr_lfn][1]
-                    else:
-                        curr_file = File.from_path(value)
-                        tuple_val = (curr_pfn, curr_file)
-                        file_input_from_config_dict[curr_lfn] = tuple_val
+                    curr_file = resolve_url_to_file(curr_pfn)
                     self.common_input_files.append(curr_file)
-                    dax_reprs.append(curr_file.dax_repr)
-                self.common_options += [opt] + dax_reprs
+                    if ifo:
+                        self.common_raw_options.append(ifo + ':')
+                        self.common_raw_options.append(curr_file.dax_repr)
+                    else:
+                        self.common_raw_options.append(curr_file.dax_repr)
+                    self.common_raw_options.append(' ')
+            elif opt in self.time_dependent_options:
+                # There is a possibility of time-dependent, file options.
+                # For now we will avoid supporting that complication unless
+                # it is needed. This would require resolving the file first
+                # in this function, and then dealing with the time-dependent
+                # stuff later.
+                self.unresolved_td_options[opt] = value
             else:
                 self.common_options += [opt, value]
 
@@ -407,12 +445,12 @@ class Executable(pegasus_workflow.Executable):
 
         return False
 
-    def create_node(self):
+    def create_node(self, **kwargs):
         """Default node constructor.
 
         This is usually overridden by subclasses of Executable.
         """
-        return Node(self)
+        return Node(self, **kwargs)
 
     def update_current_retention_level(self, value):
         """Set a new value for the current retention level.
@@ -488,8 +526,17 @@ class Executable(pegasus_workflow.Executable):
         """
         if tags is None:
             tags = []
+        if '' in tags:
+            logging.warn('DO NOT GIVE ME EMPTY TAGS')
+            tags.remove('')
         tags = [tag.upper() for tag in tags]
         self.tags = tags
+
+        if len(tags) > 6:
+            warn_msg = "This job has way too many tags. "
+            warn_msg += "Current tags are {}. ".format(' '.join(tags))
+            warn_msg += "Current executable {}.".format(self.name)
+            logging.info(warn_msg)
 
         if len(tags) != 0:
             self.tagged_name = "{0}-{1}".format(self.name, '_'.join(tags))
@@ -526,6 +573,8 @@ class Executable(pegasus_workflow.Executable):
         # collect the options and profile information
         # from the ini file section(s)
         self.common_options = []
+        self.common_raw_options = []
+        self.unresolved_td_options = {}
         self.common_input_files = []
         for sec in sections:
             if self.cp.has_section(sec):
@@ -590,7 +639,7 @@ class Workflow(pegasus_workflow.Workflow):
         super(Workflow, self).__init__(name)
 
         # Parse ini file
-        self.cp = WorkflowConfigParser.from_args(args)
+        self.cp = WorkflowConfigParser.from_cli(args)
 
         # Set global values
         start_time = int(self.cp.get("workflow", "start-time"))
@@ -657,9 +706,8 @@ class Workflow(pegasus_workflow.Workflow):
 
             resolved = resolve_url(pfn, permissions=stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR)
             node.executable.clear_pfns()
-            node.executable.add_pfn(urlparse.urljoin('file:',
-                                    urllib.pathname2url(
-                                    resolved)), site='local')
+            node.executable.add_pfn(urljoin('file:', pathname2url(resolved)),
+                                    site='local')
 
         cmd_list = node.get_command_line()
 
@@ -676,8 +724,7 @@ class Workflow(pegasus_workflow.Workflow):
 
         for fil in node._outputs:
             fil.node = None
-            fil.PFN(urlparse.urljoin('file:', 
-                    urllib.pathname2url(fil.storage_path)),
+            fil.PFN(urljoin('file:', pathname2url(fil.storage_path)),
                     site='local')
 
     @staticmethod
@@ -791,19 +838,24 @@ class Workflow(pegasus_workflow.Workflow):
             The FileList object with the configuration file.
         """
         cp = self.cp if cp is None else cp
-        ini_file_path = os.path.join(output_dir, fname)
-        with open(ini_file_path, "wb") as fp:
+        ini_file_path = os.path.abspath(os.path.join(output_dir, fname))
+        with open(ini_file_path, "w") as fp:
             cp.write(fp)
-        ini_file = FileList([File(self.ifos, "",
-                                  self.analysis_time,
-                                  file_url="file://" + ini_file_path)])
-        return ini_file
+        ini_file = File(self.ifos, "", self.analysis_time,
+                        file_url="file://" + ini_file_path)
+        # set the physical file name
+        ini_file.PFN(ini_file_path, "local")
+        # set the storage path to be the same
+        ini_file.storage_path = ini_file_path
+        return FileList([ini_file])
+
 
 class Node(pegasus_workflow.Node):
-    def __init__(self, executable):
+    def __init__(self, executable, valid_seg=None):
         super(Node, self).__init__(executable)
         self.executed = False
         self.set_category(executable.name)
+        self.valid_seg = valid_seg
 
         if executable.universe == 'vanilla' and executable.installed:
             self.add_profile('condor', 'getenv', 'True')
@@ -812,8 +864,18 @@ class Node(pegasus_workflow.Node):
             self.add_profile('hints', 'execution.site', executable.execution_site)
 
         self._options += self.executable.common_options
+        self._raw_options += self.executable.common_raw_options
         for inp in self.executable.common_input_files:
             self._add_input(inp)
+
+        if len(self.executable.time_dependent_options):
+            # Resolving these options requires the concept of a valid time.
+            # To keep backwards compatibility we will allow this to work if
+            # valid_seg is not supplied and no option actually needs resolving.
+            # It would be good to get this from the workflow's valid_seg if
+            # not overriden. But the Node is not connected to the Workflow
+            # until the dax starts to be written.
+            self.resolve_td_options(self.executable.unresolved_td_options)
 
     def get_command_line(self):
         self._finalize()
@@ -833,7 +895,7 @@ class Node(pegasus_workflow.Node):
 
         # This allows the pfn to be an http(s) URL, which will be
         # downloaded by resolve_url
-        exe_path = urlparse.urlsplit(self.executable.get_pfn()).path
+        exe_path = urllib.parse.urlsplit(self.executable.get_pfn()).path
 
         return [exe_path] + arglist
 
@@ -845,7 +907,7 @@ class Node(pegasus_workflow.Node):
 
         Parameters
         -----------
-        valid_seg : glue.segments.segment
+        valid_seg : ligo.segments.segment
             The time span over which the job is valid for.
         extension : string
             The extension to be used at the end of the filename.
@@ -941,6 +1003,10 @@ class Node(pegasus_workflow.Node):
             output_files.append(curr_file)
         self.add_multiifo_output_list_opt(opt, output_files)
 
+    def resolve_td_options(self, td_options):
+        for opt in td_options:
+            new_opt = resolve_td_option(td_options[opt], self.valid_seg)
+            self._options += [opt, new_opt]
 
     @property
     def output_files(self):
@@ -958,6 +1024,7 @@ class Node(pegasus_workflow.Node):
             err_msg += "%d output files." %(len(out_files))
             raise ValueError(err_msg)
         return out_files[0]
+
 
 class File(pegasus_workflow.File):
     '''
@@ -1033,18 +1100,21 @@ class File(pegasus_workflow.File):
         self.ifo_string = ''.join(self.ifo_list)
         self.description = exe_name
 
-        if isinstance(segs, (segments.segment)):
+        if isinstance(segs, segments.segment):
             self.segment_list = segments.segmentlist([segs])
         elif isinstance(segs, (segments.segmentlist)):
             self.segment_list = segs
         else:
-            err = "segs input must be either glue.segments.segment or "
+            err = "segs input must be either ligo.segments.segment or "
             err += "segments.segmentlist. Got %s." %(str(type(segs)),)
             raise ValueError(err)
-        if tags is not None:
-            self.tags = [t.upper() for t in tags]
-        else:
-            self.tags = []
+        if tags is None:
+            tags = []
+        if '' in tags:
+            logging.warn('DO NOT GIVE ME EMPTY TAGS')
+            tags.remove('')
+        self.tags = tags
+
         if len(self.tags):
             self.tag_str = '_'.join(tags)
             tagged_description = '_'.join([self.description] + tags)
@@ -1068,8 +1138,8 @@ class File(pegasus_workflow.File):
             path = os.path.join(directory, filename)
             if not os.path.isabs(path):
                 path = os.path.join(os.getcwd(), path)
-            file_url = urlparse.urlunparse(['file', 'localhost', path, None,
-                                            None, None])
+            file_url = urllib.parse.urlunparse(['file', 'localhost', path,
+                                                None, None, None])
 
         # Let's do a test here
         if use_tmp_subdirs and len(self.segment_list):
@@ -1080,7 +1150,7 @@ class File(pegasus_workflow.File):
         super(File, self).__init__(pegasus_lfn)
 
         if store_file:
-            self.storage_path = urlparse.urlsplit(file_url).path
+            self.storage_path = urllib.parse.urlsplit(file_url).path
         else:
             self.storage_path = None
 
@@ -1134,7 +1204,8 @@ class File(pegasus_workflow.File):
             raise ValueError('This file is temporary and so a lal '
                              'cache entry cannot be made')
 
-        file_url = urlparse.urlunparse(['file', 'localhost', self.storage_path, None,
+        file_url = urllib.parse.urlunparse(['file', 'localhost',
+                                            self.storage_path, None,
                                             None, None])
         cache_entry = lal.utils.CacheEntry(self.ifo_string,
                    self.tagged_description, self.segment_list.extent(), file_url)
@@ -1554,7 +1625,7 @@ class SegFile(File):
         See File.__init__ for a full set of documentation for how to
         call this class. The only thing unique and added to this class is
         the optional segment_dict. NOTE that while segment_dict is a
-        glue.segments.segmentlistdict rather than the usual dict[ifo]
+        ligo.segments.segmentlistdict rather than the usual dict[ifo]
         we key by dict[ifo:name].
 
         Parameters
@@ -1563,10 +1634,10 @@ class SegFile(File):
             See File.__init__
         description : string (required)
             See File.__init__
-        segment : glue.segments.segment or glue.segments.segmentlist
+        segment : ligo.segments.segment or ligo.segments.segmentlist
             See File.__init__
-        segment_dict : glue.segments.segmentlistdict (optional, default=None)
-            A glue.segments.segmentlistdict covering the times covered by the
+        segment_dict : ligo.segments.segmentlistdict (optional, default=None)
+            A ligo.segments.segmentlistdict covering the times covered by the
             segmentlistdict associated with this file.
             Can be added by setting self.segment_dict after initializing an
             instance of the class.
@@ -1589,13 +1660,13 @@ class SegFile(File):
         ------------
         description : string (required)
             See File.__init__
-        segmentlist : glue.segments.segmentslist
+        segmentlist : ligo.segments.segmentslist
             The segment list that will be stored in this file.
         name : str
             The name of the segment lists to be stored in the file.
         ifo : str
             The ifo of the segment lists to be stored in this file.
-        seg_summ_list : glue.segments.segmentslist (OPTIONAL)
+        seg_summ_list : ligo.segments.segmentslist (OPTIONAL)
             Specify the segment_summary segmentlist that goes along with the
             segmentlist. Default=None, in this case segment_summary is taken
             from the valid_segment of the SegFile class.
@@ -1619,13 +1690,13 @@ class SegFile(File):
         ------------
         description : string (required)
             See File.__init__
-        segmentlists : List of glue.segments.segmentslist
+        segmentlists : List of ligo.segments.segmentslist
             List of segment lists that will be stored in this file.
         names : List of str
             List of names of the segment lists to be stored in the file.
         ifos : str
             List of ifos of the segment lists to be stored in this file.
-        seg_summ_lists : glue.segments.segmentslist (OPTIONAL)
+        seg_summ_lists : ligo.segments.segmentslist (OPTIONAL)
             Specify the segment_summary segmentlists that go along with the
             segmentlists. Default=None, in this case segment_summary is taken
             from the valid_segment of the SegFile class.
@@ -1654,18 +1725,18 @@ class SegFile(File):
         ------------
         description : string (required)
             See File.__init__
-        segmentlistdict : glue.segments.segmentslistdict
+        segmentlistdict : ligo.segments.segmentslistdict
             See SegFile.__init__
         ifo_list : string or list (optional)
             See File.__init__, if not given a list of all ifos in the
             segmentlistdict object will be used
-        valid_segment : glue.segments.segment or glue.segments.segmentlist
+        valid_segment : ligo.segments.segment or ligo.segments.segmentlist
             See File.__init__, if not given the extent of all segments in the
             segmentlistdict is used.
         file_exists : boolean (default = False)
             If provided and set to True it is assumed that this file already
             exists on disk and so there is no need to write again.
-        seg_summ_dict : glue.segments.segmentslistdict
+        seg_summ_dict : ligo.segments.segmentslistdict
             Optional. See SegFile.__init__.
         """
         if ifo_list is None:
@@ -1699,15 +1770,14 @@ class SegFile(File):
         if not file_exists:
             instnc.to_segment_xml()
         else:
-            instnc.PFN(urlparse.urljoin('file:',
-                       urllib.pathname2url(
-                       instnc.storage_path)), site='local')
+            instnc.PFN(urljoin('file:', pathname2url(instnc.storage_path)),
+                       site='local')
         return instnc
 
     @classmethod
     def from_segment_xml(cls, xml_file, **kwargs):
         """
-        Read a glue.segments.segmentlist from the file object file containing an
+        Read a ligo.segments.segmentlist from the file object file containing an
         xml segment table.
 
         Parameters
@@ -1716,7 +1786,7 @@ class SegFile(File):
             file object for segment xml file
         """
         # load xmldocument and SegmentDefTable and SegmentTables
-        fp = open(xml_file, 'r')
+        fp = open(xml_file, 'rb')
         xmldoc, _ = ligolw_utils.load_fileobj(fp,
                                               gz=xml_file.endswith(".gz"),
                                               contenthandler=ContentHandler)
@@ -1756,8 +1826,8 @@ class SegFile(File):
 
         xmldoc.unlink()
         fp.close()
-        curr_url = urlparse.urlunparse(['file', 'localhost', xml_file, None,
-                                        None, None])
+        curr_url = urllib.parse.urlunparse(['file', 'localhost', xml_file,
+                                            None, None, None])
 
         return cls.from_segment_list_dict('SEGMENTS', segs, file_url=curr_url,
                                           file_exists=True,
@@ -1830,13 +1900,9 @@ class SegFile(File):
                                     version=1, valid=vsegs))
 
         # write file
-        if override_file_if_exists and \
-                                 self.has_pfn(self.storage_path, site='local'):
-            pass
-        else:
-            self.PFN(urlparse.urljoin('file:', 
-                     urllib.pathname2url(self.storage_path)),
-                     site='local')
+        url = urljoin('file:', pathname2url(self.storage_path))
+        if not override_file_if_exists or not self.has_pfn(url, site='local'):
+            self.PFN(url, site='local')
         ligolw_utils.write_filename(outdoc, self.storage_path)
 
 
@@ -1893,7 +1959,7 @@ def make_external_call(cmdList, out_dir=None, out_basename='external_call',
         outFP = None
 
     msg = "Making external call %s" %(' '.join(cmdList))
-    logging.debug(msg)
+    logging.info(msg)
     errCode = subprocess.call(cmdList, stderr=errFP, stdout=outFP,\
                               shell=shell)
     if errFP:
@@ -1904,7 +1970,7 @@ def make_external_call(cmdList, out_dir=None, out_basename='external_call',
     if errCode and fail_on_error:
         raise CalledProcessErrorMod(errCode, ' '.join(cmdList),
                 errFile=errFile, outFile=outFile, cmdFile=cmdFile)
-    logging.debug("Call successful, or error checking disabled.")
+    logging.info("Call successful, or error checking disabled.")
 
 class CalledProcessErrorMod(Exception):
     """
@@ -1930,6 +1996,85 @@ class CalledProcessErrorMod(Exception):
             msg += "The failed command has been printed in %s ." %(self.cmdFile)
         return msg
 
+def resolve_url_to_file(curr_pfn, attrs=None):
+    """
+    Resolves a PFN into a workflow.File object.
+
+    This function will resolve a PFN to a workflow.File object. If a File
+    object already exists for that PFN that will be returned, otherwise a new
+    object is returned. We will implement default site schemes here as needed,
+    for example cvfms paths will be added to the osg and nonfsio sites in
+    addition to local. If the LFN is a duplicate of an existing one, but with a
+    different PFN an AssertionError is raised. The attrs keyword-argument can
+    be used to specify attributes of a file. All files have 4 possible
+    attributes. A list of ifos, an identifying string - usually used to give
+    the name of the executable that created the file, a segmentlist over which
+    the file is valid and tags specifying particular details about those files.
+    If attrs['ifos'] is set it will be used as the ifos, otherwise this will
+    default to ['H1', 'K1', 'L1', 'V1']. If attrs['exe_name'] is given this
+    will replace the "exe_name" sent to File.__init__ otherwise 'INPUT' will
+    be given. segs will default to [[1,2000000000]] unless overridden with
+    attrs['segs']. tags will default to an empty list unless overriden
+    with attrs['tag']. If attrs is None it will be ignored and all defaults
+    will be used. It is emphasized that these attributes are for the most part
+    not important with input files. Exceptions include things like input
+    template banks, where ifos and valid times will be checked in the workflow
+    and used in the naming of child job output files.
+    """
+    cvmfsstr1 = 'file:///cvmfs/'
+    cvmfsstr2 = 'file://localhost/cvmfs/'
+    cvmfsstrs = (cvmfsstr1, cvmfsstr2)
+
+    # Get LFN
+    urlp = urllib.parse.urlparse(curr_pfn)
+    curr_lfn = os.path.basename(urlp.path)
+
+    # Does this already exist as a File?
+    if curr_lfn in file_input_from_config_dict.keys():
+        file_pfn = file_input_from_config_dict[curr_lfn][2]
+        # If the PFNs are different, but LFNs are the same then fail.
+        assert(file_pfn == curr_pfn)
+        curr_file = file_input_from_config_dict[curr_lfn][1]
+    else:
+        # Use resolve_url to download file/symlink as appropriate
+        local_file_path = resolve_url(curr_pfn)
+        # Create File object with default local path
+        # To do this we first need to check the attributes
+        if attrs and 'ifos' in attrs:
+            ifos = attrs['ifos']
+        else:
+            ifos = ['H1', 'K1', 'L1', 'V1']
+        if attrs and 'exe_name' in attrs:
+            exe_name = attrs['exe_name']
+        else:
+            exe_name = 'INPUT'
+        if attrs and 'segs' in attrs:
+            segs = attrs['segs']
+        else:
+            segs = segments.segment([1, 2000000000])
+        if attrs and 'tags' in attrs:
+            tags = attrs['tags']
+        else:
+            tags = []
+
+        curr_file = File(ifos, exe_name, segs, local_file_path, tags=tags)
+        pfn_local = urljoin('file:', pathname2url(local_file_path))
+        curr_file.PFN(pfn_local, 'local')
+        # Add other PFNs for nonlocal sites as needed.
+        # This block could be extended as needed
+        if curr_pfn.startswith(cvmfsstrs):
+            curr_file.PFN(curr_pfn, site='osg')
+            curr_file.PFN(curr_pfn, site='nonfsio')
+            # Also register the CVMFS PFN with the local site. We want to
+            # prefer this, and symlink from here, when possible.
+            # However, I think we need a little more to avoid it symlinking
+            # to this through an NFS mount.
+            curr_file.PFN(curr_pfn, site='local')
+        # Store the file to avoid later duplication
+        tuple_val = (local_file_path, curr_file, curr_pfn)
+        file_input_from_config_dict[curr_lfn] = tuple_val
+    return curr_file
+
 def get_full_analysis_chunk(science_segs):
     """
     Function to find the first and last time point contained in the science segments
@@ -1937,12 +2082,12 @@ def get_full_analysis_chunk(science_segs):
 
     Parameters
     -----------
-    science_segs : ifo-keyed dictionary of glue.segments.segmentlist instances
+    science_segs : ifo-keyed dictionary of ligo.segments.segmentlist instances
         The list of times that are being analysed in this workflow.
 
     Returns
     --------
-    fullSegment : glue.segments.segment
+    fullSegment : ligo.segments.segment
         The segment spanning the first and last time point contained in science_segs.
     """
     extents = [science_segs[ifo].extent() for ifo in science_segs.keys()]
@@ -1961,3 +2106,88 @@ def get_random_label():
     """
     return ''.join(random.choice(string.ascii_uppercase + string.digits) \
                    for _ in range(15))
+
+
+def resolve_td_option(val_str, valid_seg):
+    """
+    Take an option which might be time-dependent and resolve it
+
+    Some options might take different values depending on the GPS time. For
+    example if you want opt_1 to take value_a if the time is between 10 and
+    100, value_b if between 100 and 250, and value_c if between 250 and 500 you
+    can supply:
+
+    value_a[10:100],value_b[100:250],value_c[250:500].
+
+    This function will parse that string (as opt) and return the value fully
+    contained in valid_seg. If valid_seg is not full contained in one, and only
+    one, of these options. The code will fail. If given a simple option like:
+
+    value_a
+
+    The function will just return value_a.
+    """
+    # Track if we've already found a matching option
+    output = ''
+    # Strip any whitespace, and split on comma
+    curr_vals = val_str.replace(' ', '').strip().split(',')
+
+    # Resolving the simple case is trivial and can be done immediately.
+    if len(curr_vals) == 1 and '[' not in curr_vals[0]:
+        return curr_vals[0]
+
+    # Loop over all possible values
+    for cval in curr_vals:
+        start = int(valid_seg[0])
+        end = int(valid_seg[1])
+        # Extract limits for each case, and check overlap with valid_seg
+        if '[' in cval:
+            bopt = cval.split('[')[1].split(']')[0]
+            start, end = bopt.split(':')
+            cval = cval.replace('[' + bopt + ']', '')
+        curr_seg = segments.segment(int(start), int(end))
+        # The segments module is a bit weird so we need to check if the two
+        # overlap using the following code. If valid_seg is fully within
+        # curr_seg this will be true.
+        if curr_seg.intersects(valid_seg) and \
+                (curr_seg & valid_seg == valid_seg):
+            if output:
+                err_msg = "Time-dependent options must be disjoint."
+                raise ValueError(err_msg)
+            output = cval
+    if not output:
+        err_msg = "Could not resolve option {}".format(val_str)
+        raise ValueError
+    return output
+
+def add_workflow_settings_cli(parser, include_subdax_opts=False):
+    """Adds workflow options to an argument parser.
+
+    Parameters
+    ----------
+    parser : argparse.ArgumentParser
+        Argument parser to add the options to.
+    include_subdax_opts : bool, optional
+        If True, will add output-map, transformation-catalog, and dax-file
+        options to the parser. These can be used for workflows that are
+        generated as a subdax of another workflow. Default is False.
+    """
+    wfgrp = parser.add_argument_group("Options for setting workflow files")
+    wfgrp.add_argument("--workflow-name", required=True,
+                       help="Name of the workflow.")
+    wfgrp.add_argument("--tags", nargs="+", default=[],
+                       help="Append the given tags to file names.")
+    wfgrp.add_argument("--output-dir", default=None,
+                       help="Path to directory where the workflow will be "
+                            "written. Default is to use "
+                            "{workflow-name}_output.")
+    if include_subdax_opts:
+        wfgrp.add_argument("--output-map", default="output.map",
+                           help="Path to an output map file. Default is "
+                                "output.map.")
+        wfgrp.add_argument("--transformation-catalog", default=None,
+                           help="Path to transformation catalog file.")
+        wfgrp.add_argument("--dax-file", default=None,
+                           help="Path to DAX file. Default is to write to the "
+                                "output directory with name "
+                                "{workflow-name}.dax.")
