@@ -1,8 +1,9 @@
 import logging
-from pycbc.tmpltbank.option_utils import insert_metric_calculation_options, metricParameters 
+from pycbc.tmpltbank.option_utils import (insert_metric_calculation_options, metricParameters, 
+                                            massRangeParameters) 
 from pycbc.tmpltbank.calc_moments import calculate_moment, interpolate_psd, get_moments
 from pycbc.tmpltbank.lambda_mapping import get_ethinca_orders, pycbcValidOrdersHelpDescriptions 
-from pycbc.tmpltbank.coord_utils import (get_mu_params, get_covaried_params, massRangeParameters, 
+from pycbc.tmpltbank.coord_utils import (get_mu_params, get_covaried_params, 
                                             get_random_mass_point_particles)
 from pycbc.tmpltbank.lambda_mapping_eccentric import EccValidOrdersHelpDescriptions, get_chirp_params_ecc
 from pycbc.types import positive_float
