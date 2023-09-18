@@ -12,6 +12,7 @@ import pycbc
 import pycbc.libutils
 import pycbc.tmpltbank
 from pycbc.tmpltbank.lambda_mapping import generate_mapping, get_chirp_params, ethinca_order_from_string
+from pycbc.tmpltbank.lambda_mapping import pycbcValidOrdersHelpDescriptions
 from lal import MTSUN_SI, PI, CreateREAL8Vector, CreateDict
 
 lalsimulation = pycbc.libutils.import_optional('lalsimulation')
@@ -248,4 +249,4 @@ def get_chirp_params_ecc(mass1, mass2, spin1z, spin2z, ecc, f0, f_ecc, order, or
         return list(lambdas_qc) + list(lambdas)
 
 get_chirp_params_ecc.__doc__ = \
-    get_chirp_params_ecc.__doc__.format(pycbc.tmpltbank.pycbcValidOrdersHelpDescriptions)
+    get_chirp_params_ecc.__doc__.format(pycbcValidOrdersHelpDescriptions)
