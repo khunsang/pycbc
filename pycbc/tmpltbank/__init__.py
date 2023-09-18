@@ -8,3 +8,4 @@ from pycbc.tmpltbank.partitioned_bank import *
 from pycbc.tmpltbank.bank_conversions import *
 from pycbc.tmpltbank.lambda_mapping_eccentric import *
 from pycbc.tmpltbank.ecc_utils import *
+from pycbc.tmpltbank.calc_moments_ecc import *
