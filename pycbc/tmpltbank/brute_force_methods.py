@@ -597,8 +597,7 @@ def get_physical_covaried_masses_eccentric(xis, bestMasses, bestXis, req_match,
         totmass, eta, spin1z, spin2z, mass1, mass2, eccentricity, new_xis = \
             get_mass_distribution_eccentric([bestChirpmass, bestMasses[1], bestMasses[2],
                                    bestMasses[3], bestMasses[4]],
-                                  scaleFactor, massRangeParams, metricParams,
-                                  fUpper)
+                                  scaleFactor, massRangeParams, metricParams)
         cDist = (new_xis[0] - xis[0])**2
         for j in range(1,xi_size):
             cDist += (new_xis[j] - xis[j])**2
