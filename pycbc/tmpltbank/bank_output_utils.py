@@ -306,11 +306,19 @@ def output_bank_to_hdf(outputFile, tempBank, optDict=None, programName='',
         Allows unused options to be passed to this function (for modularity)
     """
     bank_dict = {}
-    mass1, mass2, spin1z, spin2z = list(zip(*tempBank))
-    bank_dict['mass1'] = mass1
-    bank_dict['mass2'] = mass2
-    bank_dict['spin1z'] = spin1z
-    bank_dict['spin2z'] = spin2z
+    if programName=="pycbc_geom_eccentric_nonspinbank":
+        mass1, mass2, spin1z, spin2z, eccentricity = list(zip(*tempBank))
+        bank_dict['mass1'] = mass1
+        bank_dict['mass2'] = mass2
+        bank_dict['spin1z'] = spin1z
+        bank_dict['spin2z'] = spin2z
+        bank_dict['eccentricity'] = eccentricity
+    else:
+        mass1, mass2, spin1z, spin2z = list(zip(*tempBank))
+        bank_dict['mass1'] = mass1
+        bank_dict['mass2'] = mass2
+        bank_dict['spin1z'] = spin1z
+        bank_dict['spin2z'] = spin2z
 
     # Add other values to the bank dictionary as appropriate
     if optDict is not None:
