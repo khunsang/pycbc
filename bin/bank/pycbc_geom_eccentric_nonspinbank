@@ -370,11 +370,11 @@ for iter, (v1, v2) in enumerate(zip(v1s, v2s)):
                giveUpThresh=20)
 
     # If point is still not close enough to desired space, remove it
-    if masses[5] > opts.max_mismatch:
+    if masses[6] > opts.max_mismatch:
         continue
     # Add the two masses (masses[0],masses[1]) to the list. For consistency
     # we also add spin1z and spin2z (masses[2] and masses[3]) but here these
-    # will always be 0. 
+    # will always be 0. Finally eccentricities (masses[4]) are added 
 
     tempBank.append([masses[0], masses[1], masses[2], masses[3], masses[4]])
 
