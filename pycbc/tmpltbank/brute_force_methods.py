@@ -605,7 +605,7 @@ def get_physical_covaried_masses_eccentric(xis, bestMasses, bestXis, req_match,
             idx = cDist.argmin()
             scaleFactor = origScaleFactor
             new_xis_list = [new_xis[ldx][idx] for ldx in range(len(new_xis))]
-            return mass1[idx], mass2[idx], spin1z[idx], spin2z[idx], count, \
+            return mass1[idx], mass2[idx], spin1z[idx], spin2z[idx], eccentricity[idx], count, \
                    cDist.min(), new_xis_list
         if (cDist.min() < currDist):
             idx = cDist.argmin()
