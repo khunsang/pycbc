@@ -517,7 +517,7 @@ def find_xi_extrema_brute(xis, bestMasses, bestXis, direction_num, req_match, \
     return xiextrema
 
 
-def get_physical_covaried_masses(xis, bestMasses, bestXis, req_match,
+def get_physical_covaried_masses_eccentric(xis, bestMasses, bestXis, req_match,
                                  massRangeParams, metricParams, fUpper,
                                  giveUpThresh = 5000):
     """
@@ -649,14 +649,14 @@ def get_mass_distribution_eccentric(bestMasses, scaleFactor, massRangeParams,
     Parameters
     -----------
     bestMasses : list
-        Contains [ChirpMass, eta, spin1z, spin2z, ecc]. Points will be placed around
+        Contains [ChirpMass, eta, spin1z, spin2z, eccentricity]. Points will be placed around
         tjos
     scaleFactor : float
         This parameter describes the radius away from bestMasses that points
         will be placed in.
-    massRangeParams : massRangeParameters instance
+    massRangeParams : massRangeParametersEccentric instance
         Instance holding all the details of mass ranges and spin ranges.
-    metricParams : metricParameters instance
+    metricParams : metricParametersEccentric instance
         Structure holding all the options for construction of the metric
         and the eigenvalues, eigenvectors and covariance matrix
         needed to manipulate the space.
@@ -881,6 +881,4 @@ def get_mass_distribution_eccentric(bestMasses, scaleFactor, massRangeParams,
     new_xis = get_cov_params_ecc(mass1, mass2, spin1z, spin2z, eccentricity,
                              metricParams, fUpper)
     return totmass, eta, spin1z, spin2z, mass1, mass2, eccentricity, new_xis
-
-
 
