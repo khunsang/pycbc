@@ -546,8 +546,6 @@ cp.set('pegasus_profile-aligned2dstack', 'condor|request_memory', '3000')
 
 # alignedcat
 cp.add_section('alignedbankcat')
-#cp.set('alignedbankcat', 'min-ecc', opts.min_ecc)
-#cp.set('alignedbankcat', 'max-ecc', opts.max_ecc)
 if opts.f_low_column is not None:
     cp.set('alignedbankcat', 'f-low-column', opts.f_low_column)
 try:
