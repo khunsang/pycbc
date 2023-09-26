@@ -21,7 +21,7 @@ This program takes a list of potential points in the xi parameter space, and
 the files that define the parameter space, and then:
 1) Removes points that are too far away from the physical region of interest
 2) Identifies the closest physical point to the desired position for all
-remaining points.
+remaining points
 3) Dumps these physical coordinates back to file
 It also prints information about the discarded points for debugging.
 """
