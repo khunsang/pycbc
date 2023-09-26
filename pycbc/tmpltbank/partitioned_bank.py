@@ -17,8 +17,7 @@
 import copy
 import numpy
 import logging
-
-from pycbc.tmpltbank import coord_utils
+from pycbc.tmpltbank import coord_utils, ecc_utils, lambda_mapping_eccentric
 
 logger = logging.getLogger('pycbc.tmpltbank.partitioned_bank')
 
@@ -77,8 +76,13 @@ class PartitionedTmpltbank(object):
         self.bin_spacing = bin_spacing
 
         # Get parameter space extent
-        vals = coord_utils.estimate_mass_range(1000000, mass_range_params,
+        if not isinstance(mass_range_params, massRangeParametersEccentric):
+            vals = coord_utils.estimate_mass_range(1000000, mass_range_params,
                                           metric_params, ref_freq, covary=True)
+        if isinstance(mass_range_params, massRangeParametersEccentric):
+            vals = ecc_utils.estimate_mass_range_ecc(1000000, mass_range_params,
+                                          metric_params, ref_freq, covary=True)
+
         chi1_max = vals[0].max()
         chi1_min = vals[0].min()
         chi1_diff = chi1_max - chi1_min
@@ -149,7 +153,11 @@ class PartitionedTmpltbank(object):
         mass2 = self.massbank[chi1_bin][chi2_bin]['mass2s'][idx]
         spin1z = self.massbank[chi1_bin][chi2_bin]['spin1s'][idx]
         spin2z = self.massbank[chi1_bin][chi2_bin]['spin2s'][idx]
-        return mass1, mass2, spin1z, spin2z
+        if not isinstance(self.mass_range_params, massRangeParametersEccentric):
+            return mass1, mass2, spin1z, spin2z
+        if not isinstance(self.mass_range_params, massRangeParametersEccentric):
+            eccentricity = self.massbank[chi1_bin][chi2_bin]['eccentricities'][idx]
+            return mass1, mass2, spin1z, spin2z, eccentricity
 
     def get_freq_map_and_normalizations(self, frequency_list,
                                         upper_freq_formula):
@@ -433,6 +441,7 @@ class PartitionedTmpltbank(object):
             return False
 
     def add_point_by_chi_coords(self, chi_coords, mass1, mass2, spin1z, spin2z,
+                                eccentricity=None,
                           point_fupper=None, mus=None):
         """
         Add a point to the partitioned template bank. The point_fupper and mus
@@ -474,6 +483,11 @@ class PartitionedTmpltbank(object):
                                                numpy.array([spin1z]))
             curr_bank['spin2s'] = numpy.append(curr_bank['spin2s'],
                                                numpy.array([spin2z]))
+            if eccentricity is not None:
+                eccentricity = float(eccentricity)
+                curr_bank['eccentricities'] = numpy.append(curr_bank['eccentricities'],
+                                               numpy.array([eccentricity]))
+ 
             if point_fupper is not None:
                 curr_bank['freqcuts'] = numpy.append(curr_bank['freqcuts'],
                                                  numpy.array([point_fupper]))
@@ -487,6 +501,11 @@ class PartitionedTmpltbank(object):
             curr_bank['mass2s'] = numpy.array([mass2])
             curr_bank['spin1s'] = numpy.array([spin1z])
             curr_bank['spin2s'] = numpy.array([spin2z])
+            
+            if eccentricity is not None:
+                #eccentricity = float(eccentricity)
+                curr_bank['eccentricities'] = numpy.array([eccentricity])
+ 
             if point_fupper is not None:
                 curr_bank['freqcuts'] = numpy.array([point_fupper])
             # curr_bank['mus'] is a 3D array
@@ -571,6 +590,84 @@ class PartitionedTmpltbank(object):
         self.add_point_by_chi_coords(chi_coords, mass1, mass2, spin1z, spin2z,
                                point_fupper=freq_cutoff, mus=mus)
 
+   def add_point_by_masses_eccentric(self, mass1, mass2, spin1z, spin2z, eccentricity,
+                            vary_fupper=False):
+        """
+        Add a point to the template bank. This differs from add point to bank
+        as it assumes that the chi coordinates and the products needed to use
+        vary_fupper have not already been calculated. This function calculates
+        these products and then calls add_point_by_chi_coords.
+        This function also
+        carries out a number of sanity checks (eg. is the point within the
+        ranges given by mass_range_params) that add_point_by_chi_coords does
+        not do for speed concerns.
+
+        Parameters
+        -----------
+        mass1 : float
+            Mass of the heavier body
+        mass2 : float
+            Mass of the lighter body
+        spin1z : float
+            Spin of the heavier body
+        spin2z : float
+            Spin of the lighter body
+        eccentricity: float
+
+        """
+        # Test that masses are the expected way around (ie. mass1 > mass2)
+        if mass2 > mass1:
+            if not self.spin_warning_given:
+                warn_msg = "Am adding a template where mass2 > mass1. The "
+                warn_msg += "convention is that mass1 > mass2. Swapping mass1 "
+                warn_msg += "and mass2 and adding point to bank. This message "
+                warn_msg += "will not be repeated."
+                logging.warn(warn_msg)
+                self.spin_warning_given = True
+
+        # These that masses obey the restrictions of mass_range_params
+        if self.mass_range_params.is_outside_range(mass1, mass2, spin1z,
+                                                                       spin2z):
+            err_msg = "Point with masses given by "
+            err_msg += "%f %f %f %f " %(mass1, mass2, spin1z, spin2z)
+            err_msg += "(mass1, mass2, spin1z, spin2z) is not consistent "
+            err_msg += "with the provided command-line restrictions on masses "
+            err_msg += "and spins."
+            raise ValueError(err_msg)
+
+        # Get chi coordinates
+        chi_coords = ecc_utils.get_cov_params_ecc(mass1, mass2, spin1z, spin2z, eccentricity,
+                                                self.metric_params,
+                                                self.ref_freq)
+
+        # Get mus and best fupper for this point, if needed
+        if vary_fupper:
+            mass_dict = {}
+            mass_dict['m1'] = numpy.array([mass1])
+            mass_dict['m2'] = numpy.array([mass2])
+            mass_dict['s1z'] = numpy.array([spin1z])
+            mass_dict['s2z'] = numpy.array([spin2z])
+            freqs = numpy.array(list(self.frequency_map.keys()), dtype=float)
+            freq_cutoff = coord_utils.return_nearest_cutoff(\
+                                     self.upper_freq_formula, mass_dict, freqs)
+            freq_cutoff = freq_cutoff[0]
+            lambdas = lambda_mapping_eccentric.get_chirp_params_ecc\
+                (mass1, mass2, spin1z, spin2z,  eccentricity, self.metric_params.f0,
+                 self.metric_params.fEcc,
+                 self.metric_params.pnOrder, self.metric_params.eccpnOrder)
+            mus = []
+            for freq in self.frequency_map:
+                mus.append(coord_utils.get_mu_params(lambdas,
+                                                    self.metric_params, freq) )
+            mus = numpy.array(mus)
+        else:
+            freq_cutoff=None
+            mus=None
+
+        self.add_point_by_chi_coords(chi_coords, mass1, mass2, spin1z, spin2z, 
+                                     eccentricity=eccentricity,
+                               point_fupper=freq_cutoff, mus=mus)
+
 
     def add_tmpltbank_from_xml_table(self, sngl_table, vary_fupper=False):
         """
@@ -607,9 +704,15 @@ class PartitionedTmpltbank(object):
         mass2s = hdf_fp['mass2'][:]
         spin1zs = hdf_fp['spin1z'][:]
         spin2zs = hdf_fp['spin2z'][:]
-        for idx in range(len(mass1s)):
-            self.add_point_by_masses(mass1s[idx], mass2s[idx], spin1zs[idx],
+        if not isinstance(self.mass_range_params, massRangeParametersEccentric):
+            for idx in range(len(mass1s)):
+                self.add_point_by_masses(mass1s[idx], mass2s[idx], spin1zs[idx],
                                      spin2zs[idx], vary_fupper=vary_fupper)
+        if isinstance(self.mass_range_params, massRangeParametersEccentric):
+            eccentricities = hdf_fp['eccentricity'][:]
+            for idx in range(len(mass1s)):
+                self.add_point_by_masses_eccentric(mass1s[idx], mass2s[idx], spin1zs[idx],
+                                     spin2zs[idx], eccentricities[idx], vary_fupper=vary_fupper)
 
     def output_all_points(self):
         """Return all points in the bank.
