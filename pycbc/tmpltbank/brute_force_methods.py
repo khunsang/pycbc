@@ -363,7 +363,8 @@ def stack_xi_direction_brute(xis, bestMasses, bestXis, direction_num,
         Position in the xi space at which to assess the depth. This can be only
         a subset of the higher dimensions than that being sampled.
     bestMasses : list
-        Contains [totalMass, eta, spin1z, spin2z]. Is a physical position
+        Contains [totalMass, eta, spin1z, spin2z] or [totalMass, eta, spin1z, spin2z, eccentricity]. 
+        Is a physical position
         mapped to xi coordinates in bestXis that is close to the xis point.
         This is aimed to give the code a starting point.
     bestXis : list
@@ -437,7 +438,7 @@ def find_xi_extrema_brute(xis, bestMasses, bestXis, direction_num, req_match, \
         Position in the xi space at which to assess the depth. This can be only
         a subset of the higher dimensions than that being sampled.
     bestMasses : list
-        Contains [totalMass, eta, spin1z, spin2z]. Is a physical position
+        Contains [totalMass, eta, spin1z, spin2z] or [totalMass, eta, spin1z, spin2z, eccentricity]. Is a physical position
         mapped to xi coordinates in bestXis that is close to the xis point.
         This is aimed to give the code a starting point.
     bestXis : list
@@ -487,12 +488,18 @@ def find_xi_extrema_brute(xis, bestMasses, bestXis, direction_num, req_match, \
         xiextrema = -100000000000
 
     for _ in range(numIterations):
-        # Evaluate extrema of the xi direction specified
-        totmass, eta, spin1z, spin2z, _, _, new_xis = \
-            get_mass_distribution([bestChirpmass,bestMasses[1],bestMasses[2],
+        if not isinstance(massRangeParams, massRangeParametersEccentric):
+            # Evaluate extrema of the xi direction specified
+            totmass, eta, spin1z, spin2z, _, _, new_xis = \
+                    get_mass_distribution([bestChirpmass,bestMasses[1],bestMasses[2],
                                    bestMasses[3]],
                                   scaleFactor, massRangeParams, metricParams,
                                   fUpper)
+        if isinstance(massRangeParams, massRangeParametersEccentric):
+            totmass, eta, spin1z, spin2z,  _, _, eccentricity, new_xis = \
+                    get_mass_distribution_eccentric ([bestChirpmass, bestMasses[1], bestMasses[2],
+                                   bestMasses[3], bestMasses[4]],
+                                  scaleFactor, massRangeParams, metricParams)
         cDist = (new_xis[0] - xis[0])**2
         for j in range(1, xi_size):
             cDist += (new_xis[j] - xis[j])**2
@@ -513,6 +520,8 @@ def find_xi_extrema_brute(xis, bestMasses, bestXis, direction_num, req_match, \
                 bestMasses[1] = eta[idx]
                 bestMasses[2] = spin1z[idx]
                 bestMasses[3] = spin2z[idx]
+                if not isinstance(massRangeParams, massRangeParametersEccentric):
+                    bestMasses[4] = eccentricity[idx]
                 bestChirpmass = bestMasses[0] * (bestMasses[1])**(3./5.)
     return xiextrema
 
