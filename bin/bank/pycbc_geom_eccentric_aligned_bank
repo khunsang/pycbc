@@ -222,10 +222,14 @@ parser.add_argument("--supplement-config-file", action="append",
 pycbc.tmpltbank.insert_base_bank_options(parser)
 
 # Insert the metric calculation options
-metric_opts = pycbc.tmpltbank.insert_metric_calculation_options(parser)
+metric_opts = pycbc.tmpltbank.insert_ecc_options_in_metric_calculation_options(parser)
+
 
 # Insert the mass range options
 mass_range_opts = pycbc.tmpltbank.insert_mass_range_option_group(parser)
+
+# Insert the eccentricity range option
+ecc_range_opts = pycbc.tmpltbank.insert_eccentricity_range_options(parser)
 
 # Insert the PSD options
 psd_opts = pycbc.psd.insert_psd_option_group(parser)
@@ -259,9 +263,11 @@ logging.basicConfig(format=log_format, level=log_level)
 opts.max_mismatch = 1 - opts.min_match
 
 pycbc.tmpltbank.verify_metric_calculation_options(opts, parser)
-metricParams=pycbc.tmpltbank.metricParameters.from_argparse(opts)
+pycbc.tmpltbank.verify_eccentric_metric_calculation_options(opts, parser)
+metricParams=pycbc.tmpltbank.metricParametersEccentric.from_argparse(opts)
 pycbc.tmpltbank.verify_mass_range_options(opts, parser)
-massRangeParams=pycbc.tmpltbank.massRangeParameters.from_argparse(opts)
+pycbc.tmpltbank.verify_eccentricity_options(opts, parser)
+massRangeParams=pycbc.tmpltbank.massRangeParametersEccentric.from_argparse(opts)
 pycbc.psd.verify_psd_options(opts, parser)
 if opts.psd_estimation:
     pycbc.strain.verify_strain_options(opts, parser)
@@ -300,11 +306,11 @@ metricParams.psd = psd
 
 # Begin by calculating a metric
 logging.info("Calculating metric")
-metricParams = pycbc.tmpltbank.determine_eigen_directions(metricParams)
+metricParams = pycbc.tmpltbank.determine_eigen_directions_eccentric(metricParams)
 
 logging.info("Calculating covariance matrix")
 
-vals = pycbc.tmpltbank.estimate_mass_range(1000000, massRangeParams, \
+vals = pycbc.tmpltbank.estimate_mass_range_ecc(1000000, massRangeParams, \
        metricParams, metricParams.fUpper, covary=False)
 cov = numpy.cov(vals)
 evalsCV, evecsCV = numpy.linalg.eig(cov)
@@ -315,7 +321,7 @@ metricParams.evecsCV = evecsCVdict
 
 logging.info("Determining parameter space extent")
 
-vals = pycbc.tmpltbank.estimate_mass_range(1000000, massRangeParams, \
+vals = pycbc.tmpltbank.estimate_mass_range_ecc(1000000, massRangeParams, \
        metricParams, metricParams.fUpper, covary=True)
 
 chi1Max = vals[0].max()
@@ -353,18 +359,22 @@ if opts.filter_points:
     # Create a large set of points and map to xi_i to give a starting point when
     # mapping from xi_i to masses and spins
     # Use the EM constraint only if asked to do so
-    rMass1, rMass2, rSpin1z, rSpin2z = \
-          pycbc.tmpltbank.get_random_mass(2000000, massRangeParams)
+    rMass1, rMass2, rSpin1z, rSpin2z, rEccentricity = \
+          pycbc.tmpltbank.get_random_mass_eccentric_point_particle(2000000, massRangeParams)
 
-    rXis = pycbc.tmpltbank.get_cov_params(rMass1, rMass2, rSpin1z, rSpin2z, metricParams, metricParams.fUpper)
+    rXis = pycbc.tmpltbank.get_cov_params_ecc(rMass1, rMass2, rSpin1z, rSpin2z, rEccentricity, metricParams, metricParams.fUpper)
 
     xis = (numpy.array(rXis)).T
     f0 = opts.f0
+    fEcc = opts.fEcc
     order = opts.pn_order
+    ecc_order = opts.ecc_pn_order
     maxmass1 = opts.max_mass1
     maxmass2 = opts.max_mass2
     minmass1 = opts.min_mass1
     minmass2 = opts.min_mass2
+    minecc = opts.min_ecc
+    maxecc = opts.max_ecc
     maxNSspin = opts.max_ns_spin_mag
     maxBHspin = opts.max_bh_spin_mag
 
@@ -474,10 +484,10 @@ try:
     cp.add_section('executables')
 except configparser.DuplicateSectionError:
     pass
-cp.set('executables', 'aligned2dstack', '${which:pycbc_geom_aligned_2dstack}')
-cp.set('executables', 'alignedbankcat', '${which:pycbc_aligned_bank_cat}')
-cp.set('executables', 'dumptochis', '${which:pycbc_tmpltbank_to_chi_params}')
-cp.set('executables', 'bankverify', '${which:pycbc_bank_verification}')
+cp.set('executables', 'aligned2dstack', '${which:pycbc_geom_eccentric_aligned_2dstack}')
+cp.set('executables', 'alignedbankcat', '${which:pycbc_eccentric_aligned_bank_cat}')
+cp.set('executables', 'dumptochis', '${which:pycbc_tmpltbank_eccentric_to_chi_params}')
+cp.set('executables', 'bankverify', '${which:pycbc_eccentric_bank_verification}')
 
 # Shared option groups
 try:
