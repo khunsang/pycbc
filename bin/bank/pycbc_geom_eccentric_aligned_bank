@@ -495,6 +495,7 @@ try:
 except configparser.DuplicateSectionError:
     pass
 cp.set('sharedoptions', 'massranges', 'aligned2dstack,dumptochis,bankverify')
+cp.set('sharedoptions', 'eccentricityranges', 'aligned2dstack,dumptochis,bankverify')
 cp.set('sharedoptions', 'metric', 'alignedbankcat,dumptochis,bankverify')
 cp.set('sharedoptions', 'psd', 'alignedbankcat,dumptochis,bankverify')
 cp.set('sharedoptions', 'data', 'alignedbankcat,dumptochis,bankverify')
@@ -504,6 +505,10 @@ cp.add_section('sharedoptions-massranges')
 mass_range_commands = pycbc.tmpltbank.get_options_from_group(mass_range_opts)
 add_commands_to_cp(mass_range_commands, orig_opts, cp,
                    'sharedoptions-massranges')
+cp.add_section('sharedoptions-eccentricityranges')
+eccentricity_range_commands = pycbc.tmpltbank.get_options_from_group(ecc_range_opts)
+add_commands_to_cp(eccentricity_range_commands, orig_opts, cp,
+                           'sharedoptions-eccentricityranges')
 cp.add_section('sharedoptions-metric')
 metric_commands = pycbc.tmpltbank.get_options_from_group(metric_opts)
 add_commands_to_cp(metric_commands, orig_opts, cp, 'sharedoptions-metric')
@@ -520,7 +525,9 @@ add_commands_to_cp(ethinca_commands, orig_opts, cp, 'sharedoptions-ethinca')
 # 2dstack
 cp.add_section('aligned2dstack')
 cp.set('aligned2dstack', 'pn-order',opts.pn_order)
+cp.set('aligned2dstack', 'ecc-pn-order',opts.ecc_pn_order)
 cp.set('aligned2dstack', 'f0', str(opts.f0))
+cp.set('aligned2dstack', 'f_ecc', str(opts.f_ecc))
 cp.set('aligned2dstack', 'min-match', str(opts.min_match))
 cp.set('aligned2dstack', 'stack-distance', str(opts.stack_distance))
 if opts.threed_lattice:
