@@ -51,30 +51,30 @@ parser = argparse.ArgumentParser(usage, description=_desc,
 parser.add_argument('--version', action='version', version=__version__)
 parser.add_argument("--verbose", action="store_true", default=False,\
                     help="verbose output")
-#parser.add_argument("--pn-order", action="store", type=str,\
-#                  default=None,\
-#                  help="Determines the PN order to use. Note that if you "+\
-#                       "placing a bank of non-spinning templates, any "+\
-#                       "spin-related terms in the metric will always "+\
-#                       "be zero. REQUIRED ARGUMENT: "+\
-#                       "choices are: %s" %(pycbcValidOrdersHelpDescriptions))
-#parser.add_argument("--ecc-pn-order", action="store", type=str,\
-#                  default=None,\
-#                  help="Determines the eccentricity PN order to use. "+\
-#                       "REQUIRED ARGUMENT: "+\
-#                       "choices are: %s" %(EccValidOrdersHelpDescriptions))
-#parser.add_argument("--f0", action="store", type=float,\
-#                  default=70.,\
-#                  help="f0 is used as a dynamic rescaling factor when "+\
-#                       "calculating the integrals used in metric "+\
-#                       "construction. IE. instead of integrating F(f) we "+\
-#                       "integrate F(f/f0) and then remove f0 after the fact."+\
-#                       "The default option should be fine here for most "+\
-#                       "applications. OPTIONAL"+\
-#                       "WARNING: If using ethinca calculation this must be "+\
-#                       "equal to f-low. UNITS=Hz")
-#parser.add_argument("--f-ecc", action='store', type=float, default=20, \
-#                    help="frecequency at which eccentricities are defined")
+parser.add_argument("--pn-order", action="store", type=str,\
+                  default=None,\
+                  help="Determines the PN order to use. Note that if you "+\
+                       "placing a bank of non-spinning templates, any "+\
+                       "spin-related terms in the metric will always "+\
+                       "be zero. REQUIRED ARGUMENT: "+\
+                       "choices are: %s" %(pycbcValidOrdersHelpDescriptions))
+parser.add_argument("--ecc-pn-order", action="store", type=str,\
+                  default=None,\
+                  help="Determines the eccentricity PN order to use. "+\
+                       "REQUIRED ARGUMENT: "+\
+                       "choices are: %s" %(EccValidOrdersHelpDescriptions))
+parser.add_argument("--f0", action="store", type=float,\
+                  default=70.,\
+                  help="f0 is used as a dynamic rescaling factor when "+\
+                       "calculating the integrals used in metric "+\
+                       "construction. IE. instead of integrating F(f) we "+\
+                       "integrate F(f/f0) and then remove f0 after the fact."+\
+                       "The default option should be fine here for most "+\
+                       "applications. OPTIONAL"+\
+                       "WARNING: If using ethinca calculation this must be "+\
+                       "equal to f-low. UNITS=Hz")
+parser.add_argument("--f-ecc", action='store', type=float, default=20, \
+                    help="frecequency at which eccentricities are defined")
 parser.add_argument("-I", "--input-file", action="store", type=str,
                    required=True,
                    help="HDF file containing the input bank and the "
@@ -107,7 +107,7 @@ parser.add_argument("--random-seed", action="store", type=int,\
 pycbc.tmpltbank.insert_base_bank_options(parser)
 
 # Insert the metric calculation options
-pycbc.tmpltbank.insert_ecc_options_in_metric_calculation_options(parser)
+#pycbc.tmpltbank.insert_ecc_options_in_metric_calculation_options(parser)
 
 # Insert the mass range options
 pycbc.tmpltbank.insert_mass_range_option_group(parser)
