@@ -6,7 +6,7 @@ from pycbc.tmpltbank.lambda_mapping import get_ethinca_orders, pycbcValidOrdersH
 from pycbc.tmpltbank.coord_utils import (get_mu_params, get_covaried_params, 
                                             get_random_mass_point_particles)
 from pycbc.tmpltbank.lambda_mapping_eccentric import EccValidOrdersHelpDescriptions, get_chirp_params_ecc
-from pycbc.types import positive_float
+from pycbc.types import positive_float, nonnegative_float
 import numpy
 
 def verify_eccentric_metric_calculation_options(opts, parser):
@@ -378,10 +378,10 @@ def insert_eccentricity_range_options(parser):
     """
     eccOpts = parser.add_argument_group("Options related to eccentricity "
                                         "limits for bank generation")
-    eccOpts.add_argument("--min-ecc", action="store", type=positive_float, 
+    eccOpts.add_argument("--min-ecc", action="store", type=nonnegative_float, 
                          required=True,
                          help="Minimum value of eccentricity: must be positive and <0.1")
-    eccOpts.add_argument("--max-ecc", action="store", type=positive_float,
+    eccOpts.add_argument("--max-ecc", action="store", type=nonnegative_float,
                          required=True,
                          help="Maximum value of eccentricity: must be positive and <0.1")
     return eccOpts
@@ -401,7 +401,7 @@ def verify_eccentricity_options(opts, parser):
     """
     if opts.min_ecc > opts.max_ecc:
         parser.error("min-ecc cannot be greater than max-ecc.")
-    if opts.max_ecc > 0.1:
+    if opts.max_ecc > 0.2:
         parser.error("max-ecc or min-ecc cannot be greater than 0.1")
 
 def insert_ecc_options_in_metric_calculation_options(parser):
