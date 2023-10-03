@@ -380,10 +380,10 @@ def insert_eccentricity_range_options(parser):
                                         "limits for bank generation")
     eccOpts.add_argument("--min-ecc", action="store", type=nonnegative_float, 
                          required=True,
-                         help="Minimum value of eccentricity: must be positive and <0.1")
+                         help="Minimum value of eccentricity: must be positive and <0.2")
     eccOpts.add_argument("--max-ecc", action="store", type=nonnegative_float,
                          required=True,
-                         help="Maximum value of eccentricity: must be positive and <0.1")
+                         help="Maximum value of eccentricity: must be positive and <0.2")
     return eccOpts
 
 
