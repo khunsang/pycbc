@@ -24,7 +24,7 @@ Read in a tmpltbank and create a file containing the list of chi parameters
 import pycbc
 import pycbc.version
 
-__author__  = "Ian Harry <ian.harry@astro.cf.ac.uk>" #Khun Sang Phukon
+__author__  = "Ian Harry <ian.harry@astro.cf.ac.uk>"
 __version__ = pycbc.version.git_verbose_msg
 __date__    = pycbc.version.date
 __program__ = "pycbc_tmpltbank_eccentric_to_chi_params"
@@ -76,9 +76,11 @@ parser.add_argument("--random-seed", action="store", type=int,
 
 # Insert the metric calculation options
 tmpltbank.insert_ecc_options_in_metric_calculation_options(parser)
+#tmpltbank.insert_metric_calculation_options(parser)
 
 # Insert the mass range options
 tmpltbank.insert_mass_range_option_group(parser)
+
 
 # Insert the eccentricity range option
 tmpltbank.insert_eccentricity_range_options(parser)
@@ -100,10 +102,9 @@ logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
 # Sanity check options
 tmpltbank.verify_metric_calculation_options(opts, parser)
 tmpltbank.verify_eccentric_metric_calculation_options(opts, parser)
-
 metricParams=tmpltbank.metricParametersEccentric.from_argparse(opts)
 tmpltbank.verify_mass_range_options(opts, parser)
-tmpltbank.verify_eccentricity_range_options(opts, parser)
+tmpltbank.verify_eccentricity_options(opts, parser)
 massRangeParams=tmpltbank.massRangeParametersEccentric.from_argparse(opts)
 psd.verify_psd_options(opts, parser)
 if opts.psd_estimation:
@@ -142,14 +143,13 @@ refFreq = metricParams.fUpper
 logging.info("Calculating covariance matrix")
 
 vals = tmpltbank.estimate_mass_range_ecc(
-    1000000, massRangeParams, metricParams, refFreq, covary=False)
+    4000000, massRangeParams, metricParams, refFreq, covary=False)
 cov = numpy.cov(vals)
 evalsCV,evecsCV = numpy.linalg.eig(cov)
 metricParams.evecsCV = {}
 metricParams.evecsCV[refFreq] = evecsCV
 
 logging.info("Reading template bank.")
-#Don't use xml file now
 if opts.input_bank.endswith(('.xml','.xml.gz','.xmlgz')):
     indoc = ligolw_utils.load_filename(opts.input_bank,
                                        contenthandler=LIGOLWContentHandler)
