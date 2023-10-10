@@ -443,7 +443,7 @@ for entry in temp_bank:
                            [xi1_des,xi2_des,xi3_des,xi4_des],\
                            copy.deepcopy(bestMasses), copy.deepcopy(bestXis), \
                            req_match, massRangeParams, metricParams, opts.f0)
-                    if masses[56]:
+                    if masses[6]:
                         points_info.append([masses[0], masses[1], masses[2],
                                         masses[3], masses[5], masses[6]])
 
