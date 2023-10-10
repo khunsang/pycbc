@@ -36,6 +36,7 @@ import pycbc.version
 from pycbc import pnutils
 from pycbc.tmpltbank.lambda_mapping import pycbcValidOrdersHelpDescriptions
 from pycbc.tmpltbank.lambda_mapping_eccentric import EccValidOrdersHelpDescriptions
+from pycbc.tmpltbank.ecc_utils import massRangeParametersEccentric
 
 __author__  = "Khun Sang Phukon>"
 __version__ = pycbc.version.git_verbose_msg
