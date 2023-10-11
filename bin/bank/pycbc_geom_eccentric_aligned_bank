@@ -495,7 +495,7 @@ try:
 except configparser.DuplicateSectionError:
     pass
 cp.set('sharedoptions', 'massranges', 'aligned2dstack,dumptochis,bankverify')
-cp.set('sharedoptions', 'eccentricityranges', 'aligned2dstack,dumptochis,bankverify')
+cp.set('sharedoptions', 'eccentricityranges', 'aligned2dstack,dumptochis,bankverify,alignedbankcat')
 cp.set('sharedoptions', 'metric', 'alignedbankcat,dumptochis,bankverify')
 cp.set('sharedoptions', 'psd', 'alignedbankcat,dumptochis,bankverify')
 cp.set('sharedoptions', 'data', 'alignedbankcat,dumptochis,bankverify')
