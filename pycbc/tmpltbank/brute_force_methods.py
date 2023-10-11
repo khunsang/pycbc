@@ -2,7 +2,7 @@ import logging
 import numpy
 
 from pycbc.tmpltbank.coord_utils import get_cov_params
-from pycbc.tmpltbank.ecc_utils import get_cov_params_ecc 
+from pycbc.tmpltbank.ecc_utils import get_cov_params_ecc, massRangeParametersEccentric 
 
 logger = logging.getLogger('pycbc.tmpltbank.brute_force_methods')
 
