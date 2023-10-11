@@ -76,10 +76,10 @@ class PartitionedTmpltbank(object):
         self.bin_spacing = bin_spacing
 
         # Get parameter space extent
-        if not isinstance(mass_range_params, massRangeParametersEccentric):
+        if not isinstance(mass_range_params, ecc_utils.massRangeParametersEccentric):
             vals = coord_utils.estimate_mass_range(1000000, mass_range_params,
                                           metric_params, ref_freq, covary=True)
-        if isinstance(mass_range_params, massRangeParametersEccentric):
+        if isinstance(mass_range_params, ecc_utils.massRangeParametersEccentric):
             vals = ecc_utils.estimate_mass_range_ecc(1000000, mass_range_params,
                                           metric_params, ref_freq, covary=True)
 
@@ -153,9 +153,9 @@ class PartitionedTmpltbank(object):
         mass2 = self.massbank[chi1_bin][chi2_bin]['mass2s'][idx]
         spin1z = self.massbank[chi1_bin][chi2_bin]['spin1s'][idx]
         spin2z = self.massbank[chi1_bin][chi2_bin]['spin2s'][idx]
-        if not isinstance(self.mass_range_params, massRangeParametersEccentric):
+        if not isinstance(self.mass_range_params, ecc_utils.massRangeParametersEccentric):
             return mass1, mass2, spin1z, spin2z
-        if not isinstance(self.mass_range_params, massRangeParametersEccentric):
+        if not isinstance(self.mass_range_params, ecc_utils.massRangeParametersEccentric):
             eccentricity = self.massbank[chi1_bin][chi2_bin]['eccentricities'][idx]
             return mass1, mass2, spin1z, spin2z, eccentricity
 
@@ -704,11 +704,11 @@ class PartitionedTmpltbank(object):
         mass2s = hdf_fp['mass2'][:]
         spin1zs = hdf_fp['spin1z'][:]
         spin2zs = hdf_fp['spin2z'][:]
-        if not isinstance(self.mass_range_params, massRangeParametersEccentric):
+        if not isinstance(self.mass_range_params, ecc_utils.massRangeParametersEccentric):
             for idx in range(len(mass1s)):
                 self.add_point_by_masses(mass1s[idx], mass2s[idx], spin1zs[idx],
                                      spin2zs[idx], vary_fupper=vary_fupper)
-        if isinstance(self.mass_range_params, massRangeParametersEccentric):
+        if isinstance(self.mass_range_params, ecc_utils.massRangeParametersEccentric):
             eccentricities = hdf_fp['eccentricity'][:]
             for idx in range(len(mass1s)):
                 self.add_point_by_masses_eccentric(mass1s[idx], mass2s[idx], spin1zs[idx],
