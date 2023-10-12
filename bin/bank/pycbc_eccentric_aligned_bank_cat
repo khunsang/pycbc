@@ -90,8 +90,8 @@ logging.basicConfig(format='%(asctime)s %(message)s', level=log_level)
 if not options.output_file:
     parser.error("Must supply --output-file.")
 
-tmpltbank.verify_metric_calculation_options(options, parser)
-tmpltbank.verify_eccentric_metric_calculation_options(opts, parser)
+#tmpltbank.verify_metric_calculation_options(options, parser)
+tmpltbank.verify_eccentric_metric_calculation_options(options, parser)
 metricParams=tmpltbank.metricParametersEccentric.from_argparse(options)
 pycbc.psd.verify_psd_options(options, parser)
 if options.psd_estimation:
