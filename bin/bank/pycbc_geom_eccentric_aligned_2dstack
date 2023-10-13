@@ -445,7 +445,7 @@ for entry in temp_bank:
                            req_match, massRangeParams, metricParams, opts.f0)
                     if masses[6]:
                         points_info.append([masses[0], masses[1], masses[2],
-                                        masses[3], masses[5], masses[6]])
+                                        masses[3], masses[4], masses[6]])
 
 h5outfile = h5py.File(opts.output_file, 'w')
 h5outfile['reject_points'] = numpy.array(reject_info)
