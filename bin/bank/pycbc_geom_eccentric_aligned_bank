@@ -530,8 +530,8 @@ cp.set('aligned2dstack', 'f0', str(opts.f0))
 cp.set('aligned2dstack', 'f-ecc', str(opts.f_ecc))
 cp.set('aligned2dstack', 'min-match', str(opts.min_match))
 cp.set('aligned2dstack', 'stack-distance', str(opts.stack_distance))
-cp.set('aligned2dstack', 'max-ns-spin-mag', str(opts.max_ns_spin_mag))
-cp.set('aligned2dstack', 'max-bh-spin-mag', str(opts.max_bh_spin_mag))
+#cp.set('aligned2dstack', 'max-ns-spin-mag', str(opts.max_ns_spin_mag))
+#cp.set('aligned2dstack', 'max-bh-spin-mag', str(opts.max_bh_spin_mag))
 
 
 if opts.threed_lattice:
@@ -546,8 +546,8 @@ cp.set('pegasus_profile-aligned2dstack', 'condor|request_memory', '3000')
 
 # alignedcat
 cp.add_section('alignedbankcat')
-cp.set('alignedbankcat', 'min-ecc', opts.min_ecc)
-cp.set('alignedbankcat', 'max-ecc', opts.max_ecc)
+#cp.set('alignedbankcat', 'min-ecc', opts.min_ecc)
+#cp.set('alignedbankcat', 'max-ecc', opts.max_ecc)
 if opts.f_low_column is not None:
     cp.set('alignedbankcat', 'f-low-column', opts.f_low_column)
 try:
@@ -558,8 +558,8 @@ cp.set('pegasus_profile-alignedbankcat', 'condor|request_memory', '3000')
 
 # dumptochis
 cp.add_section('dumptochis')
-cp.set('dumptochis', 'max-ns-spin-mag', str(opts.max_ns_spin_mag))
-cp.set('dumptochis', 'max-bh-spin-mag', str(opts.max_bh_spin_mag))
+#cp.set('dumptochis', 'max-ns-spin-mag', str(opts.max_ns_spin_mag))
+#cp.set('dumptochis', 'max-bh-spin-mag', str(opts.max_bh_spin_mag))
 try:
     cp.add_section('pegasus_profile-dumptochis')
 except configparser.DuplicateSectionError:
@@ -568,8 +568,8 @@ cp.set('pegasus_profile-dumptochis', 'condor|request_memory', '3000')
 
 # bank verification
 cp.add_section('bankverify')
-cp.set('bankverify', 'max-ns-spin-mag', str(opts.max_ns_spin_mag))
-cp.set('bankverify', 'max-bh-spin-mag', str(opts.max_bh_spin_mag))
+#cp.set('bankverify', 'max-ns-spin-mag', str(opts.max_ns_spin_mag))
+#cp.set('bankverify', 'max-bh-spin-mag', str(opts.max_bh_spin_mag))
 cp.set('bankverify', 'bin-spacing', str(1 - opts.min_match))
 try:
     cp.add_section('pegasus_profile-bankverify')
