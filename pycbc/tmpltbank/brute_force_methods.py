@@ -520,7 +520,7 @@ def find_xi_extrema_brute(xis, bestMasses, bestXis, direction_num, req_match, \
                 bestMasses[1] = eta[idx]
                 bestMasses[2] = spin1z[idx]
                 bestMasses[3] = spin2z[idx]
-                if not isinstance(massRangeParams, massRangeParametersEccentric):
+                if isinstance(massRangeParams, massRangeParametersEccentric):
                     bestMasses[4] = eccentricity[idx]
                 bestChirpmass = bestMasses[0] * (bestMasses[1])**(3./5.)
     return xiextrema
