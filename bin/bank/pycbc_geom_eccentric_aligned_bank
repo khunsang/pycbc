@@ -530,8 +530,8 @@ cp.set('aligned2dstack', 'f0', str(opts.f0))
 cp.set('aligned2dstack', 'f-ecc', str(opts.f_ecc))
 cp.set('aligned2dstack', 'min-match', str(opts.min_match))
 cp.set('aligned2dstack', 'stack-distance', str(opts.stack_distance))
-cp.set('aligned2dstack', 'max-ns-spin-mag', str(opts.max_ns_spin_mag))
-cp.set('aligned2dstack', 'max-bh-spin-mag', str(opts.max_bh_spin_mag))
+#cp.set('aligned2dstack', 'max-ns-spin-mag', str(opts.max_ns_spin_mag))
+#cp.set('aligned2dstack', 'max-bh-spin-mag', str(opts.max_bh_spin_mag))
 
 
 if opts.threed_lattice:
