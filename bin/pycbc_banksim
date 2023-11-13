@@ -38,7 +38,7 @@ from pycbc.io.ligolw import LIGOLWContentHandler
 import pycbc.psd, pycbc.scheme, pycbc.fft, pycbc.strain
 from pycbc.detector import overhead_antenna_pattern as generate_fplus_fcross
 from pycbc.waveform import TemplateBank
-
+import pycbc.inject
 
 ## Remove the need for these functions ########################################
     
@@ -151,7 +151,7 @@ pycbc.add_common_pycbc_options(parser)
 #Template Settings
 parser.add_argument("--template-file", dest="bank_file", metavar="FILE",
                     required=True, help="File specifying the template parameters, "
-                                        "either in HDF or LIGOLW XML format.")
+                                        "either in HDF5 or LIGOLW XML format.")
 parser.add_argument("--total-mass-divide", type=float,
                     help="Total mass to switch from --template-approximant to "
                          "--highmass-approximant.")
@@ -172,7 +172,8 @@ parser.add_argument("--template-sample-rate", type=float,
 
 #Signal Settings
 parser.add_argument("--signal-file", dest="sim_file", metavar="FILE",
-                    required=True, help="SimInspiral or SnglInspiral XML file "
+                    required=True, help="SimInspiral or SnglInspiral XML file or"
+                                        "hdf5 file " 
                                         "containing the signal parameters")
 parser.add_argument("--signal-approximant", choices=aprs, required=True,
                     help="Waveform approximant for signals")
@@ -285,12 +286,18 @@ template_table = temp_bank.table
 logging.info("  %d templates", len(template_table))
 
 logging.info('Reading simulation list')
-indoc = ligolw_utils.load_filename(options.sim_file, False,
-                                   contenthandler=LIGOLWContentHandler)
-try:
-    signal_table = lsctables.SimInspiralTable.get_table(indoc)
-except ValueError:
-    signal_table = lsctables.SnglInspiralTable.get_table(indoc)
+if options.sim_file.endswith(('.xml', '.xml.gz')):
+    indoc = ligolw_utils.load_filename(options.sim_file, False,
+                                       contenthandler=LIGOLWContentHandler)
+    try:
+        signal_table = lsctables.SimInspiralTable.get_table(indoc)
+    except ValueError:
+        signal_table = lsctables.SnglInspiralTable.get_table(indoc)
+
+if options.sim_file.endswith(('.h5', '.hdf5', '.hdf')):
+    injections = pycbc.inject.InjectionSet(options.sim_file)
+    signal_table = injections.table
+
 logging.info("  %d signal waveforms", len(signal_table))
 
 logging.info("Matches will be written to %s", options.out_file)
