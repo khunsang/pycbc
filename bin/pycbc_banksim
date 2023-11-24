@@ -118,13 +118,22 @@ def get_waveform(approximant, phase_order, amplitude_order, spin_order,
 
     delta_f = filter_rate / length
     if approximant in fd_approximants():
-        hp, hc = get_fd_waveform(wf_params, approximant=approximant,
+        try:
+            hp, hc = get_fd_waveform(wf_params, approximant=approximant,
                                  phase_order=phase_order, delta_f=delta_f,
                                  spin_order=spin_order,
                                  f_lower=start_frequency,
                                  amplitude_order=amplitude_order,
                                  eccentricity_order=eccentricity_order,
                                  f_ref=f_ref )
+        except:
+            hp, hc = get_fd_waveform(wf_params, approximant=approximant,
+                                 phase_order=phase_order, delta_f=delta_f,
+                                 spin_order=spin_order,
+                                 f_lower=start_frequency,
+                                 amplitude_order=amplitude_order)
+
+
         hvec = generate_detector_strain(wf_params, hp, hc)
 
     elif approximant in td_approximants():
