@@ -179,7 +179,13 @@ if len(mtot):
 if opt.plot_title is None:
     opt.plot_title = 'Fitting factor plots'
 if opt.plot_caption is None:
-    opt.plot_caption = ("A sequence of plots showing the fitting factor of "
+    if ecc.any() != 0:
+        opt.plot_caption = ("A sequence of plots showing the fitting factor of "
+                            "the input injections as a function of both spins and "
+                             "masses (top 2 rows) and eccentricity (bottom row) as well as showing cumulative "
+                             "and non-cumulative distributions of fitting factor.")
+    else:
+        opt.plot_caption = ("A sequence of plots showing the fitting factor of "
                         "the input injections as a function of both spins and "
                         "masses (top 2 rows), as well as showing cumulative "
                         "and non-cumulative distributions of fitting factor.")
