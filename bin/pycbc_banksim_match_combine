@@ -33,6 +33,7 @@ from pycbc.waveform import TemplateBank
 from pycbc.io.ligolw import LIGOLWContentHandler
 from pycbc.io.hdf import HFile
 from pycbc import load_source
+import pycbc.inject
 
 __author__  = "Ian Harry <ian.harry@astro.cf.ac.uk>"
 __version__ = pycbc.version.git_verbose_msg
