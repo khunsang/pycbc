@@ -85,13 +85,13 @@ f = HFile(options.output_file, "w")
 
 bank_params = {}
 bank_par_list = ['mass1', 'mass2', 'spin1x', 'spin1y', 'spin1z', 'spin2x',
-                 'spin2y', 'spin2z']
+                 'spin2y', 'spin2z', 'eccentricity']
 for val in bank_par_list:
     bank_params[val] = np.zeros(len(res), dtype=np.float64)
 
 inj_params = {}
 inj_par_list = ['mass1', 'mass2', 'spin1x', 'spin1y', 'spin1z', 'spin2x',
-                'spin2y', 'spin2z', 'coa_phase', 'inclination', 'latitude',
+                'spin2y', 'spin2z', 'eccentricity', 'coa_phase', 'inclination', 'latitude',
                 'longitude', 'polarization']
 for val in inj_par_list:
     inj_params[val] = np.zeros(len(res), dtype=np.float64)
@@ -109,9 +109,13 @@ for idx, row in enumerate(res):
         btables[row['bank']] = temp_bank.table
 
     if row['sim'] not in itables:
-        indoc = utils.load_filename(row['sim'], False,
+        try:
+            indoc = utils.load_filename(row['sim'], False,
                                     contenthandler=LIGOLWContentHandler)
-        itables[row['sim']] = ligolw.Table.get_table(indoc, "sim_inspiral") 
+            itables[row['sim']] = ligolw.Table.get_table(indoc, "sim_inspiral")
+        except:
+            injections = pycbc.inject.InjectionSet(row['sim'])
+            itables[row['sim']] = injections.table
     
     bt = btables[row['bank']][row['bank_i']]     
     it = itables[row['sim']][row['sim_i']]
@@ -139,7 +143,8 @@ if options.filter_func_file:
     modl = load_source('filter_func', options.filter_func_file)
     func = modl.filter_injections
     bool_arr = func(inj_params['mass1'], inj_params['mass2'],
-                    inj_params['spin1z'], inj_params['spin2z'])
+                    inj_params['spin1z'], inj_params['spin2z'],
+                    inj_params['eccentricity'])
     bool_arr = np.array(bool_arr)
 
 # Also consider values over the whole set
