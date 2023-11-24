@@ -130,7 +130,10 @@ for idx, row in enumerate(res):
             # For example spin1x is not always stored in aligned-spin banks
             bank_params[val][idx] = 0.
     for val in inj_par_list:
-        inj_params[val][idx] = getattr(it, val)
+        try:
+            inj_params[val][idx] = getattr(it, val)
+        except AttributeError:
+            inj_params[val][idx] = 0
 
 for val in bank_par_list:
     f['bank_params/{}'.format(val)] = bank_params[val] 
