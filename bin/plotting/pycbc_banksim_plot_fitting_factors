@@ -93,7 +93,7 @@ def adjust_axes(ax_instance):
 
 pointsize=4
 if ecc.any() != 0:
-    fig, axarr = plt.subplots(nrows=4, ncols=3, figsize=(12,10))
+    fig, axarr = plt.subplots(nrows=4, ncols=2, figsize=(12,10))
 else:
     fig, axarr = plt.subplots(nrows=3, ncols=2, figsize=(10,8))
 fig.subplots_adjust(left=0.1, bottom=0.1, right=0.8, top=0.96, wspace=0.3,
