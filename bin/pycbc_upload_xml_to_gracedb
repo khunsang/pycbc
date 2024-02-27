@@ -44,6 +44,7 @@ from pycbc.results import generate_asd_plot
 from pycbc import conversions as conv
 
 
+
 def check_gracedb_for_event(gdb_handle, query, far):
     """
     Check if there is an event in gracedb with the queried string
