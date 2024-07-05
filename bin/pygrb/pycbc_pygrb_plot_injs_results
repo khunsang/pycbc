@@ -33,6 +33,7 @@ import pycbc.results
 import pycbc.version
 from pycbc import init_logging
 from pycbc.results import pygrb_postprocessing_utils as ppu
+from pycbc.io.hdf import HFile
 
 plt.switch_backend('Agg')
 matplotlib.rc("image")
