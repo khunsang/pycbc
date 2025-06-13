@@ -2,7 +2,7 @@ import logging
 import numpy
 
 from pycbc.tmpltbank.coord_utils import get_cov_params
-from pycbc.tmpltbank.ecc_utils import get_cov_params_ecc, massRangeParametersEccentric 
+from pycbc.tmpltbank.ecc_utils import get_cov_params_ecc, massRangeParametersEccentric
 
 logger = logging.getLogger('pycbc.tmpltbank.brute_force_methods')
 
@@ -14,7 +14,7 @@ def get_physical_covaried_masses(xis, bestMasses, bestXis, req_match,
     This function takes the position of a point in the xi parameter space and
     iteratively finds a close point in the physical coordinate space (masses
     and spins).
- 
+
     Parameters
     -----------
     xis : list or array
@@ -168,7 +168,7 @@ def get_mass_distribution(bestMasses, scaleFactor, massRangeParams,
         The jump points will be chosen with absolute variation in spin2z up to
         this multiplied by scaleFactor.
 
-    Returns 
+    Returns
     --------
     Totmass : numpy.array
         Total mass of the resulting points
@@ -187,7 +187,7 @@ def get_mass_distribution(bestMasses, scaleFactor, massRangeParams,
     new_xis : list of numpy.array
         Position of points in the xi coordinates
     """
-    # FIXME: It would be better if rejected values could be drawn from the 
+    # FIXME: It would be better if rejected values could be drawn from the
     # full possible mass/spin distribution. However speed in this function is
     # a major factor and must be considered.
     bestChirpmass = bestMasses[0]
@@ -393,8 +393,8 @@ def stack_xi_direction_brute(xis, bestMasses, bestXis, direction_num,
     numIterations : int, optional (default = 3000)
         The number of times to make calls to get_mass_distribution when
         assessing the maximum/minimum of this parameter space. Making this
-        smaller makes the code faster, but at the cost of accuracy.   
- 
+        smaller makes the code faster, but at the cost of accuracy.
+
     Returns
     --------
     xi_min : float
@@ -411,7 +411,7 @@ def stack_xi_direction_brute(xis, bestMasses, bestXis, direction_num,
                                   fUpper, find_minimum=True, \
                                   scaleFactor=scaleFactor, \
                                   numIterations=numIterations)
- 
+
     # Find maximum
     ximax = find_xi_extrema_brute(xis, bestMasses, bestXis, direction_num, \
                                   req_match, massRangeParams, metricParams, \
@@ -470,7 +470,7 @@ def find_xi_extrema_brute(xis, bestMasses, bestXis, direction_num, req_match, \
     numIterations : int, optional (default = 3000)
         The number of times to make calls to get_mass_distribution when
         assessing the maximum/minimum of this parameter space. Making this
-        smaller makes the code faster, but at the cost of accuracy.   
+        smaller makes the code faster, but at the cost of accuracy.
 
     Returns
     --------
@@ -531,9 +531,9 @@ def get_physical_covaried_masses_eccentric(xis, bestMasses, bestXis, req_match,
                                  giveUpThresh = 5000):
     """
     This function takes the position of a point in the xi parameter space and
-    iteratively finds a close point in the physical coordinate space (masses, spins 
+    iteratively finds a close point in the physical coordinate space (masses, spins
     and eccentricity).
- 
+
     Parameters
     -----------
     xis : list or array
@@ -646,7 +646,7 @@ def get_physical_covaried_masses_eccentric(xis, bestMasses, bestXis, req_match,
 
 
 def get_mass_distribution_eccentric(bestMasses, scaleFactor, massRangeParams,
-                          metricParams, 
+                          metricParams,
                           numJumpPoints=100, chirpMassJumpFac=0.0001,
                           etaJumpFac=0.01, spin1zJumpFac=0.01,
                           spin2zJumpFac=0.01, eccJumpFac=0.001):
@@ -690,10 +690,10 @@ def get_mass_distribution_eccentric(bestMasses, scaleFactor, massRangeParams,
         The jump points will be chosen with absolute variation in spin2z up to
         this multiplied by scaleFactor.
     eccJumpFac : float, optional (default=0.001)
-        The jump points will be chosen with fractional variation in eccentricity 
-        up to this multiplied by scaleFactor. 
+        The jump points will be chosen with fractional variation in eccentricity
+        up to this multiplied by scaleFactor.
 
-    Returns 
+    Returns
     --------
     Totmass : numpy.array
         Total mass of the resulting points
@@ -714,7 +714,7 @@ def get_mass_distribution_eccentric(bestMasses, scaleFactor, massRangeParams,
     new_xis : list of numpy.array
         Position of points in the xi coordinates
     """
-    # FIXME: It would be better if rejected values could be drawn from the 
+    # FIXME: It would be better if rejected values could be drawn from the
     # full possible mass/spin distribution. However speed in this function is
     # a major factor and must be considered.
     bestChirpmass = bestMasses[0]
@@ -788,7 +788,7 @@ def get_mass_distribution_eccentric(bestMasses, scaleFactor, massRangeParams,
     currJumpFac = eccJumpFac * scaleFactor
     if currJumpFac > eccRange:
         currJumpFac = eccRange
-    
+
     eccentricity = bestEcc * ( 1 - (numpy.random.random(numJumpPoints) - 0.5) \
                            * currJumpFac)
 
@@ -807,7 +807,7 @@ def get_mass_distribution_eccentric(bestMasses, scaleFactor, massRangeParams,
         eta[eta < 0.0001] = 0.0001
 
     eccentricity[eccentricity>massRangeParams.maxEccentricity] = massRangeParams.maxEccentricity
-    eccentricity[eccentricity<massRangeParams.minEccentricity] = massRangeParams.minEccentricity 
+    eccentricity[eccentricity<massRangeParams.minEccentricity] = massRangeParams.minEccentricity
 
     # Total mass, masses and mass diff
     totmass = chirpmass / (eta**(3./5.))
