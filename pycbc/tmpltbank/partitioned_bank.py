@@ -668,7 +668,7 @@ class PartitionedTmpltbank(object):
                                      eccentricity=eccentricity,
                                point_fupper=freq_cutoff, mus=mus)
 
-   def add_point_by_masses_eccentric(self, mass1, mass2, spin1z, spin2z, eccentricity, 
+   def add_point_by_masses_eccentric(self, mass1, mass2, spin1z, spin2z, eccentricity,
                                         vary_fupper=False):
         """
         Add a point to the template bank. This differs from add point to bank
