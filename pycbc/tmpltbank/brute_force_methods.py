@@ -526,11 +526,7 @@ def find_xi_extrema_brute(xis, bestMasses, bestXis, direction_num, req_match, \
     return xiextrema
 
 
-<<<<<<< HEAD
 def get_physical_covaried_masses_eccentric(xis, bestMasses, bestXis, req_match,
-=======
-def get_physical_covaried_masses(xis, bestMasses, bestXis, req_match,
->>>>>>> 11f154d2 (Adding brute force conversion to the physical space from the xis)
                                  massRangeParams, metricParams, fUpper,
                                  giveUpThresh = 5000):
     """
@@ -610,12 +606,7 @@ def get_physical_covaried_masses(xis, bestMasses, bestXis, req_match,
         totmass, eta, spin1z, spin2z, mass1, mass2, eccentricity, new_xis = \
             get_mass_distribution_eccentric([bestChirpmass, bestMasses[1], bestMasses[2],
                                    bestMasses[3], bestMasses[4]],
-<<<<<<< HEAD
                                   scaleFactor, massRangeParams, metricParams)
-=======
-                                  scaleFactor, massRangeParams, metricParams,
-                                  fUpper)
->>>>>>> 11f154d2 (Adding brute force conversion to the physical space from the xis)
         cDist = (new_xis[0] - xis[0])**2
         for j in range(1,xi_size):
             cDist += (new_xis[j] - xis[j])**2
@@ -623,11 +614,7 @@ def get_physical_covaried_masses(xis, bestMasses, bestXis, req_match,
             idx = cDist.argmin()
             scaleFactor = origScaleFactor
             new_xis_list = [new_xis[ldx][idx] for ldx in range(len(new_xis))]
-<<<<<<< HEAD
             return mass1[idx], mass2[idx], spin1z[idx], spin2z[idx], eccentricity[idx], count, \
-=======
-            return mass1[idx], mass2[idx], spin1z[idx], spin2z[idx], count, \
->>>>>>> 11f154d2 (Adding brute force conversion to the physical space from the xis)
                    cDist.min(), new_xis_list
         if (cDist.min() < currDist):
             idx = cDist.argmin()
@@ -670,24 +657,14 @@ def get_mass_distribution_eccentric(bestMasses, scaleFactor, massRangeParams,
     Parameters
     -----------
     bestMasses : list
-<<<<<<< HEAD
         Contains [ChirpMass, eta, spin1z, spin2z, eccentricity]. Points will be placed around
-=======
-        Contains [ChirpMass, eta, spin1z, spin2z, ecc]. Points will be placed around
->>>>>>> 11f154d2 (Adding brute force conversion to the physical space from the xis)
-        tjos
+        it
     scaleFactor : float
         This parameter describes the radius away from bestMasses that points
         will be placed in.
-<<<<<<< HEAD
     massRangeParams : massRangeParametersEccentric instance
         Instance holding all the details of mass ranges and spin ranges.
     metricParams : metricParametersEccentric instance
-=======
-    massRangeParams : massRangeParameters instance
-        Instance holding all the details of mass ranges and spin ranges.
-    metricParams : metricParameters instance
->>>>>>> 11f154d2 (Adding brute force conversion to the physical space from the xis)
         Structure holding all the options for construction of the metric
         and the eigenvalues, eigenvectors and covariance matrix
         needed to manipulate the space.
@@ -912,9 +889,3 @@ def get_mass_distribution_eccentric(bestMasses, scaleFactor, massRangeParams,
     new_xis = get_cov_params_ecc(mass1, mass2, spin1z, spin2z, eccentricity,
                              metricParams, fUpper)
     return totmass, eta, spin1z, spin2z, mass1, mass2, eccentricity, new_xis
-
-<<<<<<< HEAD
-=======
-
-
->>>>>>> 11f154d2 (Adding brute force conversion to the physical space from the xis)
