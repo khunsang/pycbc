@@ -802,7 +802,7 @@ def _base_get_td_waveform_from_fd(template=None, rwrap=None, **params):
     tsize = int(1.0 / nparams['delta_t'] /  nparams['delta_f'])
     fsize = tsize // 2 + 1
 
-    if nparams['approximant'] not in fd_det:
+    if nparams['approximant'] not in fd_det or nparams['approximant'] !='TaylorF2Ecc':
         hp, hc = get_fd_waveform(**nparams)
         # Resize to the right sample rate
         hp.resize(fsize)
