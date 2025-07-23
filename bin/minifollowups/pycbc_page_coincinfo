@@ -46,6 +46,8 @@ parser.add_argument('--statmap-file', required=True,
 parser.add_argument('--statmap-file-subspace-name', default='background_exc',
     help="If given look in this 'sub-directory' of the HDF file for triggers, "
          "takes a default value of 'background_exc'.")
+parser.add_argument('--eccentricity-flag', action='store_true',
+    help='eccentricity flag to write eccentricity values in html pages')
 trig_input = parser.add_mutually_exclusive_group(required=True)
 trig_input.add_argument('--n-loudest', type=int,
     help="Examine the n'th loudest trigger, use with statmap file")
@@ -241,7 +243,12 @@ for ifo in files.keys():
     data[-1].append('%5.2f' % mchirp)
     data[-1].append('%5.2f' % bank['spin1z'][tid])
     data[-1].append('%5.2f' % bank['spin2z'][tid])
-    data[-1].append('%5.2f' % d['template_duration'][i])
+    if args.eccentricity_flag:
+        data[-1].append('%5.2f' % bank['eccentricity'][tid])
+    if not args.eccentricity_flag:
+        data[-1].append('%5.2f' % d['template_duration'][i])
+    if args.eccentricity_flag:
+        data[-1].append('%5.2f' % bank['template_duration'][tid])
     headers.append("m<sub>1</sub>")
     headers.append("m<sub>2</sub>")
     headers.append("M<sub>c</sub>")
