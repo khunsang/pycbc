@@ -49,6 +49,8 @@ parser.add_argument('--veto-file',
 parser.add_argument('--veto-segment-name',
     help="If using veto file, the name of the segments to use as a veto.")
 parser.add_argument("--instrument", help="Name of ifo (e.g. H1)")
+parser.add_argument('--eccentricity-flag', action='store_true',
+    help="Eccentricity flag" )
 trig_args = parser.add_mutually_exclusive_group(required=True)
 trig_args.add_argument("--n-loudest", type=int, default=None,
     help="Examine the n'th loudest trigger (loudest is n=0). Must supply "
@@ -195,12 +197,16 @@ data[0].append('%5.2f' % sngl_file.mass2[0])
 data[0].append('%5.2f' % sngl_file.mchirp[0])
 data[0].append('%5.2f' % sngl_file.spin1z[0])
 data[0].append('%5.2f' % sngl_file.spin2z[0])
+if args.eccentricity_flag:
+    data[0].append('%.5e' % sngl_file.eccentricity[0])
 data[0].append('%5.2f' % sngl_file.template_duration[0])
 headers.append("m<sub>1</sub>")
 headers.append("m<sub>2</sub>")
 headers.append("M<sub>c</sub>")
 headers.append("s<sub>1z</sub>")
 headers.append("s<sub>2z</sub>")
+if args.eccentricity_flag:
+    headers.append("e<sub>0</sub>")
 headers.append("Duration")
 
 if args.significance_file and not args.n_loudest:
