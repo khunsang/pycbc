@@ -33,6 +33,8 @@ parser.add_argument('--use-hierarchical-level', type=int,
                          'doing 1 hierarchical removal. The program will '
                          'fail if the user selects a number above the number '
                          'of hierarchical removals done. [default=None]')
+parser.add_argument('--eccentricity-flag', action='store_true',
+                    help='eccentricity flag to write eccentricity values in html pages')
 args = parser.parse_args()
 
 pycbc.init_logging(args.verbose)
@@ -100,6 +102,8 @@ if args.output_file.endswith('.html'):
     mass2 = fortrigs.get_bankfile_array('mass2')
     spin1z = fortrigs.get_bankfile_array('spin1z')
     spin2z = fortrigs.get_bankfile_array('spin2z')
+    if args.eccentricity_flag:
+        eccentricity = fortrigs.get_bankfile_array('eccentricity')
     time = fortrigs.get_end_time()
 
     if h_num_rm is not None and h_iterations is not None \
@@ -148,6 +152,10 @@ if args.output_file.endswith('.html'):
     format_strings = ['#.###E0', '#.###E0', '#.##E0', '#.##E0', '##.###',
                       None, '##.##', '##.##', '##.##', '##.##', '##.##']
 
+    if args.eccentricity_flag:
+        columns.append(eccentricity)
+        names.append('e0')
+        format_strings.append('#.##E0')
     if args.single_detector_triggers:
         single_snr = fortrigs.get_snglfile_array_dict('snr')
         single_chisq = fortrigs.get_snglfile_array_dict('chisq')
