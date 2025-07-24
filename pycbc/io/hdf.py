@@ -850,6 +850,11 @@ class SingleDetTriggers(object):
         return self.bank['approximant'][:][self.template_id]
 
     @property
+    def eccentricity(self):
+        self.checkbank('eccentricity')
+        return self.bank['eccentricity'][:][self.template_id]
+
+    @property
     def mtotal(self):
         return self.mass1 + self.mass2
 
