@@ -199,7 +199,10 @@ data[0].append('%5.2f' % sngl_file.spin1z[0])
 data[0].append('%5.2f' % sngl_file.spin2z[0])
 if args.eccentricity_flag:
     data[0].append('%.5e' % sngl_file.eccentricity[0])
-data[0].append('%5.2f' % sngl_file.template_duration[0])
+if args.eccentricity_flag:
+    data[0].append('%5.2f' % sngl_file.bank['template_duration'][:][ sngl_file.template_id[0] ])
+else:
+    data[0].append('%5.2f' % sngl_file.template_duration[0])
 headers.append("m<sub>1</sub>")
 headers.append("m<sub>2</sub>")
 headers.append("M<sub>c</sub>")
