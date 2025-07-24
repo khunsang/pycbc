@@ -139,8 +139,13 @@ def get_bank_property(parameter, bank, template_ids):
 
     # Basic conversions
     elif parameter in mass_conversions.keys():
-        values = mass_conversions[parameter](bank['mass1'][:][template_ids],
-                                             bank['mass2'][:][template_ids])
+        if parameter=='chirp_mass_eccentric':
+            values = mass_conversions[parameter](bank['mass1'][:][template_ids],
+                                                bank['mass2'][:][template_ids],
+                                                bank['eccentricity'][:][template_ids])
+        else:
+            values = mass_conversions[parameter](bank['mass1'][:][template_ids],
+                                                bank['mass2'][:][template_ids])
 
     elif parameter in spin_conversions.keys():
         values = spin_conversions[parameter](bank['mass1'][:][template_ids],
