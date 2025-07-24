@@ -863,6 +863,10 @@ class SingleDetTriggers(object):
         return conversions.mchirp_from_mass1_mass2(self.mass1, self.mass2)
 
     @property
+    def mchirp_eccentric(self):
+        return conversions.mchirp_eccentric_from_mass1_mass2_eccentricity(self.mass1, self.mass2, self.eccentricity)
+
+    @property
     def eta(self):
         return conversions.eta_from_mass1_mass2(self.mass1, self.mass2)
 
