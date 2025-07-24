@@ -40,7 +40,7 @@ conversion_options = ['mass1', 'mass2', 'spin1z', 'spin2z', 'duration',
                       'template_duration', 'mtotal', 'total_mass',
                       'q', 'invq', 'eta', 'chirp_mass', 'mchirp',
                       'chieff', 'chi_eff', 'effective_spin', 'chi_a',
-                      'premerger_duration', 'eccentricity']
+                      'premerger_duration', 'eccentricity', 'chirp_mass_eccentric']
 
 
 mass_conversions = {
@@ -51,6 +51,7 @@ mass_conversions = {
     'eta': conv.eta_from_mass1_mass2,
     'mchirp': conv.mchirp_from_mass1_mass2,
     'chirp_mass': conv.mchirp_from_mass1_mass2,
+    'chirp_mass_eccentric':conv.mchirp_eccentric_from_mass1_mass2_eccentricity
 }
 
 spin_conversions = {
