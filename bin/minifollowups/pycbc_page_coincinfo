@@ -32,6 +32,7 @@ import pycbc.pnutils
 from pycbc.io.hdf import HFile
 from pycbc.events import stat as pystat
 from pycbc.results import followup
+from pycbc.conversions import mchirp_eccentric_from_mass1_mass2_eccentricity
 
 parser = argparse.ArgumentParser()
 add_common_pycbc_options(parser)
@@ -245,6 +246,7 @@ for ifo in files.keys():
     data[-1].append('%5.2f' % bank['spin2z'][tid])
     if args.eccentricity_flag:
         data[-1].append('%5.2f' % bank['eccentricity'][tid])
+        data[-1].append('%5.2f' % mchirp_eccentric_from_mass1_mass2_eccentricity(bank['mass1'][tid], bank['mass2'][tid], bank['eccentricity'][tid]))
     if not args.eccentricity_flag:
         data[-1].append('%5.2f' % d['template_duration'][i])
     if args.eccentricity_flag:
@@ -254,6 +256,9 @@ for ifo in files.keys():
     headers.append("M<sub>c</sub>")
     headers.append("s<sub>1z</sub>")
     headers.append("s<sub>2z</sub>")
+    if args.eccentricity_flag:
+        headers.append("e<sub>0</sub>")
+        headers.append("M<sup>e</sup><sub>c</sub>")
     headers.append("Duration")
 
 html += str(pycbc.results.static_table(
