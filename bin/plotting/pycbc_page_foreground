@@ -13,7 +13,7 @@ import pycbc
 import pycbc.results
 from pycbc.io import hdf
 from pycbc.pnutils import mass1_mass2_to_mchirp_eta
-
+from pycbc.conversions import mchirp_eccentric_from_mass1_mass2_eccentricity
 
 parser = argparse.ArgumentParser(description=__doc__)
 pycbc.add_common_pycbc_options(parser)
@@ -102,8 +102,6 @@ if args.output_file.endswith('.html'):
     mass2 = fortrigs.get_bankfile_array('mass2')
     spin1z = fortrigs.get_bankfile_array('spin1z')
     spin2z = fortrigs.get_bankfile_array('spin2z')
-    if args.eccentricity_flag:
-        eccentricity = fortrigs.get_bankfile_array('eccentricity')
     time = fortrigs.get_end_time()
 
     if h_num_rm is not None and h_iterations is not None \
@@ -153,9 +151,14 @@ if args.output_file.endswith('.html'):
                       None, '##.##', '##.##', '##.##', '##.##', '##.##']
 
     if args.eccentricity_flag:
+        eccentricity = fortrigs.get_bankfile_array('eccentricity')
+        mchirp_eccentric = mchirp_eccentric_from_mass1_mass2_eccentricity(mass1, mass2, eccentricity)
         columns.append(eccentricity)
+        columns.append(mchirp_eccentric)
         names.append('e0')
+        names.append('mchirpEcc')
         format_strings.append('#.##E0')
+        format_strings.append('##.##')
     if args.single_detector_triggers:
         single_snr = fortrigs.get_snglfile_array_dict('snr')
         single_chisq = fortrigs.get_snglfile_array_dict('chisq')
