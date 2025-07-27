@@ -1178,6 +1178,8 @@ class ForegroundTriggers(object):
         coinc_def_table.append(coinc_def_row)
 
         bank_col_names = ['mass1', 'mass2', 'spin1z', 'spin2z']
+        #if 'eccentricity' in list(self.bank_file.keys()):
+        #    bank_col_names.append('eccentricity')
         bank_col_vals = {}
         for name in bank_col_names:
             bank_col_vals[name] = self.get_bankfile_array(name)
@@ -1319,6 +1321,12 @@ class ForegroundTriggers(object):
         mass1 = self.get_bankfile_array('mass1')
         mass2 = self.get_bankfile_array('mass2')
         ofd['chirp_mass'], _ = pnutils.mass1_mass2_to_mchirp_eta(mass1, mass2)
+
+        if 'eccentricity' in list(self.bank_file.keys()):
+            ofd['eccentricity'] = self.get_bankfile_array('eccentricity')
+            ofd['chirp_mass_eccentric'] = conversions.mchirp_eccentric_from_mass1_mass2_eccentricity(
+                                                            mass1, mass2,
+                                                            self.get_bankfile_array('eccentricity'))
 
         logger.info("Outputting single-trigger information")
         logger.info("reduced chisquared")
