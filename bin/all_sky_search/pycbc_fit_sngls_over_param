@@ -71,7 +71,8 @@ parser.add_argument("--smoothing-width", type=float, required=True,
                     help="Distance in the space of fit param values (or the "
                          "logs of them) to smooth over. Required. For log "
                          "template duration, try 0.2")
-
+parser.add_argument('--eccentricity-flag', action='store_true',
+                    help='eccentricity flag')
 args = parser.parse_args()
 
 if args.regression_method == 'nn' and args.num_neighbors < 1:
@@ -96,8 +97,12 @@ if args.use_template_fit_param:
 else:
     logging.info('Calculating template parameter values')
     bank = HFile(args.bank_file, 'r')
-    m1, m2, s1z, s2z = triggers.get_mass_spin(bank, tid)
-    parvals = triggers.get_param(args.fit_param, args, m1, m2, s1z, s2z) 
+    if not args.eccentricity_flag:
+        m1, m2, s1z, s2z = triggers.get_mass_spin(bank, tid)
+        parvals = triggers.get_param(args.fit_param, args, m1, m2, s1z, s2z)
+    if args.eccentricity_flag:
+        m1, m2, s1z, s2z, e0 = triggers.get_mass_spin_eccentricity(bank, tid)
+        parvals = triggers.get_param_eccentric(args.fit_param, args, m1, m2, s1z, s2z, e0)
 
 if 'count_in_template' in fits.keys():  # recently introduced extra dataset
     tcount = True
@@ -198,7 +203,7 @@ outfile.attrs.create('regression_method', data=args.regression_method)
 if args.num_neighbors > 0:
     outfile.attrs.create('n_neighbors', data=args.num_neighbors)
 outfile.attrs.create('smoothing_width', data=args.smoothing_width)
-if 'analysis_time' in fits.attrs:    
+if 'analysis_time' in fits.attrs:
     outfile.attrs['analysis_time'] = fits.attrs['analysis_time']
 
 # add a magic file attribute so that coinc_findtrigs can parse it
