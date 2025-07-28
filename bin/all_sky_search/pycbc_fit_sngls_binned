@@ -106,7 +106,8 @@ outputchoice.add_argument("--output-file",
 parser.add_argument("--user-tag", default="",
                     help="Put a possibly informative string in the names of "
                     "plot files")
-
+parser.add_argument('--eccentricity-flag', action='store_true',
+                    help='eccentricity flag')
 pystat.insert_statistic_option_group(parser,
     default_ranking_statistic='single_ranking_only')
 args = parser.parse_args()
@@ -194,6 +195,18 @@ def get_pars(args, tag, m1, m2, s1z, s2z):
         pass
     return triggers.get_param(paramarg, args, m1, m2, s1z, s2z)
 
+def get_pars_eccentric(args, tag, m1, m2, s1z, s2z, e0):
+    # here used for both pruning and binning params
+    paramarg = getattr(args, tag+'_param')
+    try:
+        # will fail if m1 is a float rather than a sequence
+        logging.info('Getting %s values for %i triggers' % (paramarg, len(m1)))
+    except:
+        pass
+    return triggers.get_param_eccentric(paramarg, args, m1, m2, s1z, s2z, e0)
+
+
+
 if args.prune_param:
     logging.info('Getting min and max param values')
     prpars = get_pars(args, 'prune',
@@ -232,10 +245,16 @@ if args.prune_param:
         lstat = statpruneall[loudest]
         ltid = tidpruneall[loudest]
         ltime = timepruneall[loudest]
-        m1, m2, s1z, s2z = triggers.get_mass_spin(templatef, ltid)
-        lbin = trstats.which_bin(get_pars(args, 'prune', m1, m2, s1z, s2z),
-                                 minprpar, maxprpar,
-                                 args.prune_bins, log=args.log_prune_param)
+        if not args.eccentricity_flag:
+            m1, m2, s1z, s2z = triggers.get_mass_spin(templatef, ltid)
+            lbin = trstats.which_bin(get_pars(args, 'prune', m1, m2, s1z, s2z),
+                                    minprpar, maxprpar,
+                                    args.prune_bins, log=args.log_prune_param)
+        if args.eccentricity_flag:
+            m1, m2, s1z, s2z, e0 = triggers.get_mass_spin_eccentricity(templatef, ltid)
+            lbin = trstats.which_bin(get_pars_eccentric(args, 'prune', m1, m2, s1z, s2z, e0),
+                                    minprpar, maxprpar,
+                                    args.prune_bins, log=args.log_prune_param)
         # is the bin where the loudest trigger lives full already?
         if len(prunedtimes[lbin]) == args.prune_number:
             logging.info('%i - Bin %i full, not pruning event with stat %f at time '
@@ -275,8 +294,12 @@ if args.prune_param:
 if trig_dur:
     binpars = tdur + args.min_duration
 else:
-    m1, m2, s1z, s2z = triggers.get_mass_spin(templatef, tid)
-    binpars = get_pars(args, 'bin', m1, m2, s1z, s2z)
+    if not args.eccentricity_flag:
+        m1, m2, s1z, s2z = triggers.get_mass_spin(templatef, tid)
+        binpars = get_pars(args, 'bin', m1, m2, s1z, s2z)
+    if args.eccentricity_flag:
+        m1, m2, s1z, s2z, e0 = triggers.get_mass_spin_eccentricity(templatef, tid)
+        binpars = get_pars_eccentric(args, 'bin', m1, m2, s1z, s2z, e0)
 logging.info("Parameter range of triggers: %f - %f" %
                                                   (min(binpars), max(binpars)))
 
