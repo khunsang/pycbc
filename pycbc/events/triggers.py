@@ -170,6 +170,33 @@ def get_param(par, args, m1, m2, s1z, s2z):
     return parvals
 
 
+def get_param_eccentric(par, args, m1, m2, s1z, s2z, e0):
+    """
+    Helper function
+
+    Parameters
+    ----------
+    par : string
+        Name of parameter to calculate
+    args : Namespace object returned from ArgumentParser instance
+        Calling code command line options, used for f_lower value
+    m1 : float or array of floats
+        First binary component mass (etc.)
+
+    Returns
+    -------
+    parvals : float or array of floats
+        Calculated parameter values
+    """
+    if par == 'mchirp_eccentric':
+        parvals = conversions.mchirp_eccentric_from_mass1_mass2_eccentricity(m1, m2, e0)
+    else:
+        parvals = get_param(par, args, m1, m2, s1z, s2z)
+    return parvals
+
+
+
+
 def get_found_param(injfile, bankfile, trigfile, param, ifo, args=None):
     """
     Translates some popular trigger parameters into functions that calculate
