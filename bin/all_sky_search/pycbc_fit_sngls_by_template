@@ -262,9 +262,15 @@ total_time = abs(all_segments)
 # do pruning (removal of trigs at N loudest times defined over param bins)
 if args.prune_param:
     logging.info('Getting min and max param values')
-    pars = triggers.get_param(args.prune_param, args,
-                     templatef['mass1'][:], templatef['mass2'][:],
-                     templatef['spin1z'][:], templatef['spin2z'][:])
+    if not args.eccentricity_flag:
+        pars = triggers.get_param(args.prune_param, args,
+                        templatef['mass1'][:], templatef['mass2'][:],
+                        templatef['spin1z'][:], templatef['spin2z'][:])
+    if args.eccentricity_flag:
+        pars = triggers.get_param_eccentric(args.prune_param, args,
+                        templatef['mass1'][:], templatef['mass2'][:],
+                        templatef['spin1z'][:], templatef['spin2z'][:],
+                        templatef['eccentricity'][:])
     minpar = min(pars)
     maxpar = max(pars)
     del pars
