@@ -149,7 +149,8 @@ parser.add_argument("--min-duration", default=0.,
                     "before pruning. Units seconds")
 parser.add_argument("--approximant", default="SEOBNRv4",
                     help="Approximant for template duration. Default SEOBNRv4")
-
+parser.add_argument('--eccentricity-flag', action='store_true',
+                    help='eccentricity flag')
 statsmod.insert_statistic_option_group(parser,
     default_ranking_statistic='single_ranking_only')
 cuts.insert_cuts_option_group(parser)
@@ -297,12 +298,22 @@ if args.prune_param:
         lstat = statpruneall[loudest]
         ltid = tidpruneall[loudest]
         ltime = timepruneall[loudest]
-        m1, m2, s1z, s2z = triggers.get_mass_spin(templatef, ltid)
-        lbin = trstats.which_bin(triggers.get_param(args.prune_param, args,
+        if not args.eccentricity_flag:
+            m1, m2, s1z, s2z = triggers.get_mass_spin(templatef, ltid)
+
+            lbin = trstats.which_bin(triggers.get_param(args.prune_param, args,
                                                     m1, m2, s1z, s2z),
                                  minpar, maxpar, args.prune_bins,
                                                       log=args.log_prune_param)
-        # is the bin where the loudest trigger lives full already?
+            # is the bin where the loudest trigger lives full already?
+        if args.eccentricity_flag:
+            m1, m2, s1z, s2z, e0 = triggers.get_mass_spin_eccentricity(templatef, ltid)
+
+            lbin = trstats.which_bin(triggers.get_param_eccentric(args.prune_param, args,
+                                                    m1, m2, s1z, s2z, e0),
+                                 minpar, maxpar, args.prune_bins,
+                                                      log=args.log_prune_param)
+            # is the bin where the loudest trigger lives full already?
         if len(prunedtimes[lbin]) == args.prune_number:
             logging.info('%i - Bin %i full, not pruning event with stat %f at '
                          'time %.3f' % (j, lbin, lstat, ltime))
