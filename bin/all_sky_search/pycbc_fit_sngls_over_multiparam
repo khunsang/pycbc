@@ -194,9 +194,12 @@ parser.add_argument("--fit-param", nargs='+',
                          "fit coefficients. Required. Either read from "
                          "template fit file or choose from mchirp, mtotal, "
                          "chi_eff, eta, tau_0, tau_3, template_duration, "
+                         "mchirp_eccentric, eccentricity"
                          "a frequency cutoff in pnutils or a frequency function"
                          "in LALSimulation. To regress the background over "
                          "multiple parameters, provide them as a list.")
+parser.add_argument('--eccentricity-flag', action='store_true',
+                    help='eccentricity flag')
 parser.add_argument("--approximant", default="SEOBNRv4",
                     help="Approximant for template duration. Default SEOBNRv4")
 parser.add_argument("--f-lower", type=float,
@@ -386,13 +389,18 @@ if args.smoothing_method == 'n_closest' and n_required > nabove.sum():
 
 logging.info('Calculating template parameter values')
 bank = HFile(args.bank_file, 'r')
-m1, m2, s1z, s2z = triggers.get_mass_spin(bank, tid)
-
+if not args.eccentricity_flag:
+    m1, m2, s1z, s2z = triggers.get_mass_spin(bank, tid)
+if args.eccentricity_flag:
+    m1, m2, s1z, s2z, e0 = triggers.get_mass_spin_eccentricity(bank, tid)
 parvals = []
 parnames = []
 
 for param, slog in zip(args.fit_param, args.log_param):
-    data = triggers.get_param(param, args, m1, m2, s1z, s2z)
+    if not args.eccentricity_flag:
+        data = triggers.get_param(param, args, m1, m2, s1z, s2z)
+    if  args.eccentricity_flag:
+        data = triggers.get_param_eccentric(param, args, m1, m2, s1z, s2z, e0)
     if slog in ['false', 'False', 'FALSE']:
         logging.info('Using param: %s', param)
         parvals.append(data)
