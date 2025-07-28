@@ -103,6 +103,26 @@ def get_mass_spin(bank, tid):
     s2z = bank['spin2z'][:][tid]
     return m1, m2, s1z, s2z
 
+def get_mass_spin_eccentricity(bank, tid):
+    """
+    Helper function
+
+    Parameters
+    ----------
+    bank : h5py File object
+        Bank parameter file
+    tid : integer or array of int
+        Indices of the entries to be returned
+
+    Returns
+    -------
+    m1, m2, s1z, s2z, eccentricity : tuple of floats or arrays of floats
+        Parameter values of the bank entries
+    """
+    mass_spins = get_mass_spin(bank, tid)
+    eccentricity = bank['eccentricity'][:][tid]
+    return (*mass_spins, eccentricity)
+
 
 def get_param(par, args, m1, m2, s1z, s2z):
     """
