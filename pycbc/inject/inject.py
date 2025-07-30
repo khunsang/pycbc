@@ -629,7 +629,7 @@ class CBCHDFInjectionSet(_HDFInjectionSet):
         else:
             f_l = f_lower
 
-        if inj['approximant'] in fd_det or inj['approximant']=='TaylorF2Ecc':
+        if inj['approximant'] in fd_det:
             strain = get_td_det_waveform_from_fd_det(
                         inj, delta_t=delta_t, f_lower=f_l,
                         ifos=detector_name, **self.extra_args)[detector_name]
