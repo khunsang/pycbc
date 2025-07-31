@@ -41,7 +41,7 @@ from pycbc.filter import interpolate_complex_frequency, resample_to_delta_t
 import pycbc
 from .spa_tmplt import spa_tmplt, spa_tmplt_norm, spa_tmplt_end, \
                       spa_tmplt_precondition, spa_amplitude_factor, \
-                      spa_length_in_time
+                      spa_length_in_time, eccentric_spa_length_in_time
 
 class NoWaveformError(Exception):
     """This should be raised if generating a waveform would just result in all
