@@ -653,7 +653,7 @@ def _eccentric_newtonian_time(m1, m2, e0, f_low):
     one_minus_e0Sq_sqrt = numpy.sqrt(one_minus_e0Sq)
     velocity = frequency_to_velocity(f_low, M)
     weighted_velocity = velocity / one_minus_e0Sq_sqrt
-    eta = conversions.eta_from_mass1_mass2(mass1, mass2)
+    eta = conversions.eta_from_mass1_mass2(m1, m2)
     M_sec =  M * lal.MTSUN_SI
     t_N = 5 / (256 * one_minus_e0Sq_sqrt * eta) * M_sec * (weighted_velocity**-8) \
             * F_tLO_series(e0_sq)
