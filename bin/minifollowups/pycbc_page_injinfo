@@ -37,7 +37,8 @@ parser.add_argument('--n-nearest', type=int,
     help="Optional, used in the title")
 parser.add_argument('--max-columns', type=int,
     help="Optional, maximum number of columns used for the table")
-
+parser.add_argument('--eccentricity-flag', action='store_true',
+    help="Eccentricity flag" )
 args = parser.parse_args()
 
 init_logging(args.verbose)
@@ -87,6 +88,13 @@ derived['mtotal'] = conv.mtotal_from_mass1_mass2(m1, m2)
 derived['chieff'] = conv.chi_eff(m1, m2, s1z, s2z)
 derived['chip'] = conv.chi_p(m1, m2, s1x, s1y, s2x, s2y)
 
+if args.eccentricity_flag:
+    labels.update({'eccentricity':'e<sub>0</sub>'})
+    labels.update({'mchirp_eccentric':'M<sup>e</sup><sub>c</sub>'})
+    e0 =  f['injections']['eccentricity'][iidx]
+    derived['mchirp_eccentric'] = conv.mchirp_eccentric_from_mass1_mass2_eccentricity(m1, m2, e0)
+
+
 if 'optimal_snr' in ' '.join(list(f['injections'].keys())):
     ifolist = f.attrs['ifos'].split(' ')
     for ifo in ifolist:
@@ -110,6 +118,8 @@ else:
 params += ['mass1', 'mass2', 'mchirp', 'eta', 'ra', 'dec',
             'inclination', 'spin1x', 'spin1y', 'spin1z', 'spin2x', 'spin2y',
             'spin2z', 'chieff', 'chip']
+if args.eccentricity_flag:
+    params +=['eccentricity','mchirp_eccentric']
 
 for p in params:
 
