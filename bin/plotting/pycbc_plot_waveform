@@ -68,6 +68,8 @@ parser.add_argument("--spin2x", type=float, default=0,
                   help="Non-aligned spin of the second component object. ")
 parser.add_argument("--spin2y", type=float, default=0,
                   help="Non-aligned spin of the second component object. ")
+parser.add_argument("--eccentricity", type=float, default=0,
+                  help="Orbital eccentricity ")
 parser.add_argument("--u-val", type=float, default=0,
                   help="Ratio between h_+ and h_x according to "
                         "h(t) = h_+ * u_val + h_x. Only needed in the case of "
