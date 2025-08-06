@@ -410,8 +410,9 @@ def get_single_template_params(curr_idx, times, bank_data,
     params['f_lower'] = bank_data['f_lower'][bank_id]
     if 'approximant' in bank_data:
         params['approximant'] = bank_data['approximant'][bank_id]
-    # don't require precessing template info if not present
+    # don't require eccentricity and  precessing template info if not present
     try:
+        params['eccentricity'] = bank_data['eccentricity'][bank_id]
         params['spin1x'] = bank_data['spin1x'][bank_id]
         params['spin1y'] = bank_data['spin1y'][bank_id]
         params['spin2x'] = bank_data['spin2x'][bank_id]
@@ -506,6 +507,8 @@ def make_single_template_files(workflow, segs, ifo, data_read_name,
         node.add_opt('--spin2z',"%.6f" % params['spin2z'])
         node.add_opt('--template-start-frequency',
                      "%.6f" % params['f_lower'])
+        if 'eccentricity' in params:
+            node.add_opt('--eccentricity',"%.6f" % params['eccentricity'])
         # Is this precessing?
         if 'u_vals' in params or 'u_vals_%s' % ifo in params:
             node.add_opt('--spin1x',"%.6f" % params['spin1x'])
@@ -653,9 +656,14 @@ def make_single_template_plots(workflow, segs, data_read_name, analyzed_name,
                 caption += ". The injection itself was used as the template.'"
             else:
                 caption += ". The template used has the following parameters: "
-                caption += "mass1=%s, mass2=%s, spin1z=%s, spin2z=%s'"\
-                       %(params['mass1'], params['mass2'], params['spin1z'],
-                         params['spin2z'])
+                if 'eccentricity' in params:
+                    caption += "mass1=%s, mass2=%s, spin1z=%s, spin2z=%s, eccentricity=%s'"\
+                            %(params['mass1'], params['mass2'], params['spin1z'],
+                              params['spin2z'], params['eccentricity'])
+                else:
+                    caption += "mass1=%s, mass2=%s, spin1z=%s, spin2z=%s'"\
+                            %(params['mass1'], params['mass2'], params['spin1z'],
+                              params['spin2z'])
             node.add_opt('--plot-caption', caption)
             workflow += node
             plot_files += node.output_files
@@ -679,6 +687,8 @@ def make_plot_waveform_plot(workflow, params, out_dir, ifos, exclude=None,
         node.add_opt('--mass2', "%.6f" % params['mass2'])
         node.add_opt('--spin1z',"%.6f" % params['spin1z'])
         node.add_opt('--spin2z',"%.6f" % params['spin2z'])
+        if 'eccentricity' in params:
+            node.add_opt('--eccentricity',"%.6f" % params['eccentricity'])
         if 'u_vals' in params:
             # Precessing options
             node.add_opt('--spin1x',"%.6f" % params['spin1x'])
