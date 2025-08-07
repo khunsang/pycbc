@@ -154,7 +154,7 @@ if len(indices) > 0:
         max_rank = None
 
     logging.info('Loading bank')
-    if opts.approximant=='TaylorF2Ecc':
+    if opts.approximant[0]=='TaylorF2Ecc':
         bank = pycbc.waveform.bank.TemplateBank(opts.bank_file,
                 approximant=opts.approximant,
                 parameters=['mass1', 'mass2', 'spin1z', 'spin2z', 'eccentricity', 'approximant'],
@@ -168,7 +168,7 @@ if len(indices) > 0:
 
     logging.info('Plotting %d trigs', len(sorted_end_time))
     for tc, rho, tid in zip(sorted_end_time, sorted_rank, sorted_template_ids):
-        if opts.approximant=="TaylorF2Ecc":
+        if bank.approximant(tid)=="TaylorF2Ecc":
             track_t, track_f = pycbc.pnutils.get_inspiral_tf(
                     tc - center_time, tmplts.mass1[tid], tmplts.mass2[tid],
                     tmplts.spin1z[tid], tmplts.spin2z[tid],
