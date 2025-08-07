@@ -566,7 +566,7 @@ def _get_imr_duration(m1, m2, s1z, s2z, f_low, approximant="SEOBNRv4"):
 get_imr_duration = numpy.vectorize(_get_imr_duration)
 
 def get_inspiral_tf(tc, mass1, mass2, spin1, spin2, f_low, n_points=100,
-        pn_2order=7, approximant='TaylorF2'):
+        pn_2order=7, eccentricity=None, approximant='TaylorF2'):
     """Compute the time-frequency evolution of an inspiral signal.
 
     Return a tuple of time and frequency vectors tracking the evolution of an
@@ -580,6 +580,8 @@ def get_inspiral_tf(tc, mass1, mass2, spin1, spin2, f_low, n_points=100,
     params.mass2 = mass2
     params.spin1z = spin1
     params.spin2z = spin2
+    if eccentricity is not None:
+        params.eccentricity = eccentricity
     try:
         approximant = eval(approximant, {'__builtins__': None},
                            dict(params=params))
@@ -630,6 +632,15 @@ def get_inspiral_tf(tc, mass1, mass2, spin1, spin2, f_low, n_points=100,
                 float(spin2),
                 f
             )
+    elif approximant=='TaylorF2Ecc':
+        f_high = f_SchwarzISCO(mass1 + mass2)
+        from pycbc.waveform.spa_tmplt import eccentric_chirp_time
+        def tof_func(f):
+            return eccentric_chirp_time(
+                    float(mass1),
+                    float(mass2),
+                    float(eccentricity),
+                    f)
     else:
         raise ValueError(f'Approximant {approximant} not supported')
     track_f = numpy.logspace(numpy.log10(f_low), numpy.log10(f_high), n_points)
@@ -638,7 +649,7 @@ def get_inspiral_tf(tc, mass1, mass2, spin1, spin2, f_low, n_points=100,
     return (track_t, track_f)
 
 
-# Using code from Gonzalo Morras 
+# Using code from Gonzalo Morras
 def _eccentric_newtonian_time(m1, m2, e0, f_low):
     '''
     function to compute Newtonian time to coalescence
