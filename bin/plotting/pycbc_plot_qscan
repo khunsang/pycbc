@@ -106,7 +106,8 @@ parser.add_argument('--spin1z', type=float, default=0,
 parser.add_argument('--spin2z', type=float, default=0,
                     help='If masses provided, provide spins to plot the '
                          'waveform track on top of the qscan (default=0).')
-
+parser.add_argument('--eccentricity', type=float, default=0,
+                    help='Eccentricity (default=0).')
 pycbc.strain.insert_strain_option_group(parser)
 opts = parser.parse_args()
 
@@ -216,8 +217,13 @@ cb.set_label('Normalized power')
 if plot_chirp:
     from pycbc.pnutils import get_inspiral_tf
     f_low = 20.
-    approximant = 'SPAtmplt' if opts.mass1+opts.mass2<4 else 'SEOBNRv4_ROM'
-    track_t, track_f = get_inspiral_tf(opts.center_time, opts.mass1,
+    if approximant=='TaylorF2Ecc':
+        track_t, track_f = get_inspiral_tf(opts.center_time, opts.mass1,
+                                       opts.mass2, opts.spin1z, opts.spin2z,
+                                       f_low, eccentricity=opts.eccentricity, approximant=approximant)
+    else:
+        approximant = 'SPAtmplt' if opts.mass1+opts.mass2<4 else 'SEOBNRv4_ROM'
+        track_t, track_f = get_inspiral_tf(opts.center_time, opts.mass1,
                                        opts.mass2, opts.spin1z, opts.spin2z,
                                        f_low, approximant=approximant)
     for curr_idx in range(len(wins)):
