@@ -117,7 +117,7 @@ eccentricity_flag = True if 'eccentricity' in list(inj.keys()) else False
 
 if eccentricity_flag:
     e0 = inj['eccentricity'][:][idx]
-    Mchirp_eccentric = pycbc.converions.mchirp_eccentric_from_mass1_mass2_eccentricity(m1, m2, e0)
+    Mchirp_eccentric = pycbc.conversions.mchirp_eccentric_from_mass1_mass2_eccentricity(m1, m2, e0)
 
 eccentricity_list = [e0, Mchirp_eccentric] if eccentricity_flag else []
 eccentricity_str_list = ['Eccentricity','Mchirp_ecc'] if eccentricity_flag else []
