@@ -9,6 +9,7 @@ from itertools import combinations
 import pycbc.results
 import pycbc.detector
 import pycbc.pnutils
+import pycbc.conversions
 import pycbc.events
 from pycbc.io.hdf import HFile
 from pycbc import add_common_pycbc_options, init_logging
@@ -112,20 +113,30 @@ m1, m2 = inj['mass1'][:][idx], inj['mass2'][:][idx]
 mchirp, eta = pycbc.pnutils.mass1_mass2_to_mchirp_eta(m1, m2)
 dec_chirp_dist = pycbc.pnutils.chirp_distance(dec_dist, mchirp)
 
+eccentricity_flag = True if 'eccentricity' in list(inj.keys()) else False
+
+if eccentricity_flag:
+    e0 = inj['eccentricity'][:][idx]
+    Mchirp_eccentric = pycbc.converions.mchirp_eccentric_from_mass1_mass2_eccentricity(m1, m2, e0)
+
+eccentricity_list = [e0, Mchirp_eccentric] if eccentricity_flag else []
+eccentricity_str_list = ['Eccentricity','Mchirp_ecc'] if eccentricity_flag else []
+eccentricity_format_strings = ['#.##E0', '##.##'] if eccentricity_flag else []
+
 columns = [dec_chirp_dist, inj['tc'][:][idx], m1, m2, mchirp, eta,
            inj['spin1x'][:][idx], inj['spin1y'][:][idx], inj['spin1z'][:][idx],
            inj['spin2x'][:][idx], inj['spin2y'][:][idx], inj['spin2z'][:][idx],
-           inj['distance'][:][idx]] + eff_distance + found_cols
+           inj['distance'][:][idx]] + eccentricity_list + eff_distance + found_cols
 
 names = ['DChirp Dist', 'Inj Time', 'Mass1', 'Mass2', 'Mchirp', 'Eta',
          's1x', 's1y', 's1z',
          's2x', 's2y', 's2z',
-         'Dist']  + eff_dist_str + found_names
+         'Dist'] + eccentricity_str_list + eff_dist_str + found_names
 
 format_strings = ['##.##', '##.##', '##.##', '##.##', '##.##', '##.##',
                   '##.##', '##.##', '##.##',
                   '##.##', '##.##', '##.##',
-                  '##.##'] + eff_dist_format +  found_formats
+                  '##.##'] + eccentricity_format_strings + eff_dist_format + found_formats
 columns = [np.array(col) for col in columns]
 html_table = pycbc.results.html_table(columns, names,
                                  format_strings=format_strings,
