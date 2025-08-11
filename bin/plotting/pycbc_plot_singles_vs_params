@@ -167,7 +167,15 @@ fig = plt.figure()
 ax = fig.gca()
 
 if opts.z_var == 'density':
-    hb = ax.hexbin(x, y, **hexbin_style)
+    try:
+        hb = ax.hexbin(x, y, **hexbin_style)
+    except np.core._exceptions._ArrayMemoryError as e:
+        logging.warning(f'MemoryError in hexbin: {e}')
+        logging.info("Attempting hexbin with smaller dtype float32")
+        x = np.asarray(x, dtype=np.float32)
+        y = np.asarray(y, dtype=np.float32)
+        hb = ax.hexbin(x, y, **hexbin_style)
+
     fig.colorbar(hb, ticks=LogLocator(subs=range(10)))
 elif opts.z_var in ranking.sngls_ranking_function_dict:
     cb_style = {}
