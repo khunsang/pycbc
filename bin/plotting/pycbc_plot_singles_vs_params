@@ -186,7 +186,15 @@ elif opts.z_var in ranking.sngls_ranking_function_dict:
     max_z = z.max() if opts.max_z is None else opts.max_z
     if max_z / min_z > 10:
         cb_style['ticks'] = LogLocator(subs=range(10))
-    hb = ax.hexbin(x, y, C=z, reduce_C_function=np.max, **hexbin_style)
+    try:
+        hb = ax.hexbin(x, y, C=z, reduce_C_function=np.max, **hexbin_style)
+    except np.core._exceptions._ArrayMemoryError as e:
+        logging.warning(f'MemoryError in hexbin: {e}')
+        logging.info("Attempting hexbin with smaller dtype float32")
+        x = np.asarray(x, dtype=np.float32)
+        y = np.asarray(y, dtype=np.float32)
+        z = np.asarray(z, dtype=np.float32)
+        hb = ax.hexbin(x, y, C=z, reduce_C_function=np.max, **hexbin_style)
     fig.colorbar(hb, **cb_style)
 else:
     raise RuntimeError('z_var = %s is not recognized!' % (opts.z_var))
