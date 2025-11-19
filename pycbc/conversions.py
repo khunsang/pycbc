@@ -218,7 +218,7 @@ def mchirp_from_mass1_mass2(mass1, mass2):
 def mchirp_eccentric_from_mass1_mass2_eccentricity(mass1, mass2, eccentricity):
     """Returns the eccentric chirp mass from mass1, mass2 and eccentricity"""
     mchirp = mchirp_from_mass1_mass2(mass1, mass2)
-    mchirp_eccentric = mchirp * ( 1 - 157./48 * eccentricity * eccentricity )**(6./5)
+    mchirp_eccentric = mchirp / ( 1 - 157./24 * eccentricity * eccentricity )**(3./5)
     return mchirp_eccentric
 
 def mass1_from_mtotal_q(mtotal, q):
