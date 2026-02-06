@@ -366,13 +366,13 @@ if opts.filter_points:
     # mapping from xi_i to masses and spins
     # Use the EM constraint only if asked to do so
     rMass1, rMass2, rSpin1z, rSpin2z, rEccentricity = \
-          pycbc.tmpltbank.get_random_mass_eccentric_point_particle(2000000, massRangeParams)
+          pycbc.tmpltbank.get_random_mass_eccentric_point_particles(2000000, massRangeParams)
 
     rXis = pycbc.tmpltbank.get_cov_params_ecc(rMass1, rMass2, rSpin1z, rSpin2z, rEccentricity, metricParams, metricParams.fUpper)
 
     xis = (numpy.array(rXis)).T
     f0 = opts.f0
-    fEcc = opts.fEcc
+    fEcc = opts.f_ecc
     order = opts.pn_order
     ecc_order = opts.ecc_pn_order
     maxmass1 = opts.max_mass1
