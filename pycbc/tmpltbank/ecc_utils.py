@@ -380,10 +380,10 @@ def insert_eccentricity_range_options(parser):
                                         "limits for bank generation")
     eccOpts.add_argument("--min-ecc", action="store", type=nonnegative_float, 
                          required=True,
-                         help="Minimum value of eccentricity: must be positive and <0.2")
+                         help="Minimum value of eccentricity: must be positive and <0.5")
     eccOpts.add_argument("--max-ecc", action="store", type=nonnegative_float,
                          required=True,
-                         help="Maximum value of eccentricity: must be positive and <0.2")
+                         help="Maximum value of eccentricity: must be positive and <0.5")
     return eccOpts
 
 
@@ -401,8 +401,8 @@ def verify_eccentricity_options(opts, parser):
     """
     if opts.min_ecc > opts.max_ecc:
         parser.error("min-ecc cannot be greater than max-ecc.")
-    if opts.max_ecc > 0.2:
-        parser.error("max-ecc or min-ecc cannot be greater than 0.1")
+    if opts.max_ecc > 0.5:
+        parser.error("max-ecc or min-ecc cannot be greater than 0.5")
 
 def insert_ecc_options_in_metric_calculation_options(parser):
     """
