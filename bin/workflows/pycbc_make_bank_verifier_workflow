@@ -58,7 +58,11 @@ def node_command(node):
     else:
         raw_args = []
     args = node._args + raw_args + node._options
-    cmd = [urllib.parse.urlsplit(node.executable.get_pfn()).path]
+    if hasattr(node.executable, 'get_pfn'):
+        exe_path = node.executable.get_pfn()
+    else:
+        exe_path = node.executable.executable_url
+    cmd = [urllib.parse.urlsplit(exe_path).path]
     for arg in args:
         if hasattr(arg, 'storage_path'):
             cmd.append(arg.storage_path if arg.storage_path else arg.name)
@@ -72,7 +76,7 @@ def node_job_var(node, idx):
     name = ''.join(c if c.isalnum() or c == '_' else '_' for c in name)
     return "JOB_%05d_%s" % (idx, name.upper())
 
-def write_slurm_workflow(nodes, args, submit_file):
+def write_slurm_workflow(nodes, explicit_dependencies, args, submit_file):
     """Write a Slurm submitter from the generated PyCBC workflow nodes."""
     log_dir = args.slurm_log_dir
     common_sbatch = ""
@@ -101,6 +105,10 @@ def write_slurm_workflow(nodes, args, submit_file):
         for inp in node._inputs:
             parent = getattr(inp, 'node', None)
             if parent in node_vars and node_vars[parent] not in parent_vars:
+                parent_vars.append(node_vars[parent])
+        for parent, child in explicit_dependencies:
+            if child == node and parent in node_vars \
+                    and node_vars[parent] not in parent_vars:
                 parent_vars.append(node_vars[parent])
 
         dep_arg = ""
@@ -274,11 +282,17 @@ init_logging(args.verbose)
 # Create the workflow object
 workflow = wf.Workflow(args)
 slurm_nodes = []
+slurm_explicit_dependencies = []
 _add_node = workflow.add_node
+_add_explicit_dependancy = workflow.add_explicit_dependancy
 def add_node_and_track(node):
     slurm_nodes.append(node)
     return _add_node(node)
+def add_explicit_dependancy_and_track(parent, child):
+    slurm_explicit_dependencies.append((parent, child))
+    return _add_explicit_dependancy(parent, child)
 workflow.add_node = add_node_and_track
+workflow.add_explicit_dependancy = add_explicit_dependancy_and_track
 
 wf.makedir(args.output_dir)
 os.chdir(args.output_dir)
@@ -509,6 +523,7 @@ wf.make_results_web_page(workflow, os.path.join(os.getcwd(), rdir.base),
                          explicit_dependencies=plotting_nodes)
 
 if args.workflow_backend == 'slurm':
-    write_slurm_workflow(slurm_nodes, args, args.slurm_submit_file)
+    write_slurm_workflow(slurm_nodes, slurm_explicit_dependencies, args,
+                         args.slurm_submit_file)
 else:
     workflow.save()
