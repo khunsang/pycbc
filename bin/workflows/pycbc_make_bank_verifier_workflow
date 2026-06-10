@@ -26,6 +26,8 @@ template bank.
 import os
 import argparse
 import shutil
+import shlex
+import urllib.parse
 
 import igwn_segments as segments
 
@@ -44,6 +46,83 @@ __author__  = "Ian Harry <ian.harry@ligo.org>"
 __version__ = pycbc.version.git_verbose_msg
 __date__    = pycbc.version.date
 __program__ = "pycbc_make_bank_verifier_workflow"
+
+def slurm_opt(flag, value):
+    if value is None:
+        return ""
+    return " %s=%s" % (flag, shlex.quote(str(value)))
+
+def node_command(node):
+    if len(node._raw_options):
+        raw_args = [''.join([str(a) for a in node._raw_options])]
+    else:
+        raw_args = []
+    args = node._args + raw_args + node._options
+    cmd = [urllib.parse.urlsplit(node.executable.get_pfn()).path]
+    for arg in args:
+        if hasattr(arg, 'storage_path'):
+            cmd.append(arg.storage_path if arg.storage_path else arg.name)
+        else:
+            cmd.extend(str(arg).split(' '))
+    cmd = [arg for arg in cmd if arg != '']
+    return " ".join(shlex.quote(str(arg)) for arg in cmd)
+
+def node_job_var(node, idx):
+    name = node.executable.tagged_name.replace('-', '_').replace('.', '_')
+    name = ''.join(c if c.isalnum() or c == '_' else '_' for c in name)
+    return "JOB_%05d_%s" % (idx, name.upper())
+
+def write_slurm_workflow(nodes, args, submit_file):
+    """Write a Slurm submitter from the generated PyCBC workflow nodes."""
+    log_dir = args.slurm_log_dir
+    common_sbatch = ""
+    common_sbatch += slurm_opt("--account", args.slurm_account)
+    common_sbatch += slurm_opt("--partition", args.slurm_partition)
+    common_sbatch += slurm_opt("--qos", args.slurm_qos)
+    common_sbatch += slurm_opt("--time", args.slurm_time)
+    common_sbatch += slurm_opt("--mem", args.slurm_mem)
+    common_sbatch += slurm_opt("--cpus-per-task", args.slurm_cpus)
+    if args.slurm_extra_sbatch_args:
+        common_sbatch += " " + args.slurm_extra_sbatch_args
+
+    node_vars = {}
+    lines = [
+        "#!/usr/bin/env bash",
+        "set -euo pipefail",
+        "",
+        "mkdir -p %s" % shlex.quote(log_dir),
+        "",
+    ]
+
+    for idx, node in enumerate(nodes):
+        var = node_job_var(node, idx)
+        node_vars[node] = var
+        parent_vars = []
+        for inp in node._inputs:
+            parent = getattr(inp, 'node', None)
+            if parent in node_vars and node_vars[parent] not in parent_vars:
+                parent_vars.append(node_vars[parent])
+
+        dep_arg = ""
+        if parent_vars:
+            dep_ids = ":".join("${%s}" % parent_var for parent_var in parent_vars)
+            dep_arg = " --dependency=afterok:%s" % dep_ids
+
+        job_name = "%s-%05d" % (args.slurm_job_name, idx)
+        lines += [
+            "%s=$(sbatch --parsable%s%s \\" % (var, common_sbatch, dep_arg),
+            "    --job-name=%s \\" % shlex.quote(job_name),
+            "    --output=%s/%s_%%j.out \\" % (shlex.quote(log_dir), var),
+            "    --error=%s/%s_%%j.err \\" % (shlex.quote(log_dir), var),
+            "    --wrap=%s)" % shlex.quote(node_command(node)),
+            "echo \"%s ${%s}\"" % (var, var),
+            "",
+        ]
+
+    with open(submit_file, 'w') as fp:
+        fp.write("\n".join(lines))
+        fp.write("\n")
+    os.chmod(submit_file, 0o755)
 
 # Some new executable classes. These can be moved into modules if needed
 class BanksimExecutable(wf.Executable):
@@ -158,6 +237,34 @@ parser = argparse.ArgumentParser(description=_desc)
 add_common_pycbc_options(parser)
 wf.add_workflow_command_line_group(parser)
 wf.add_workflow_settings_cli(parser)
+parser.add_argument("--workflow-backend", choices=['pegasus', 'slurm'],
+                    default='pegasus',
+                    help="Workflow backend to generate. The default is "
+                    "pegasus. The slurm backend writes an sbatch submitter "
+                    "script instead of a Pegasus DAX.")
+parser.add_argument("--slurm-submit-file",
+                    default="submit_bank_verifier_slurm.sh",
+                    help="Output path for the generated Slurm submitter when "
+                    "--workflow-backend slurm is used.")
+parser.add_argument("--slurm-log-dir", default="slurm/logs",
+                    help="Directory used for Slurm stdout and stderr logs.")
+parser.add_argument("--slurm-job-name", default="bank-verifier",
+                    help="Base Slurm job name.")
+parser.add_argument("--slurm-account", default=None,
+                    help="Slurm account to pass to sbatch.")
+parser.add_argument("--slurm-partition", default=None,
+                    help="Slurm partition to pass to sbatch.")
+parser.add_argument("--slurm-qos", default=None,
+                    help="Slurm QOS to pass to sbatch.")
+parser.add_argument("--slurm-extra-sbatch-args", default=None,
+                    help="Additional raw arguments passed to every sbatch "
+                    "command in the generated submitter.")
+parser.add_argument("--slurm-time", default="04:00:00",
+                    help="Default Slurm time limit for generated jobs.")
+parser.add_argument("--slurm-mem", default="3000M",
+                    help="Default Slurm memory request for generated jobs.")
+parser.add_argument("--slurm-cpus", type=int, default=1,
+                    help="Default Slurm CPU request for generated jobs.")
 args = parser.parse_args()
 
 init_logging(args.verbose)
@@ -166,6 +273,12 @@ init_logging(args.verbose)
 
 # Create the workflow object
 workflow = wf.Workflow(args)
+slurm_nodes = []
+_add_node = workflow.add_node
+def add_node_and_track(node):
+    slurm_nodes.append(node)
+    return _add_node(node)
+workflow.add_node = add_node_and_track
 
 wf.makedir(args.output_dir)
 os.chdir(args.output_dir)
@@ -395,4 +508,7 @@ wf.make_versioning_page(
 wf.make_results_web_page(workflow, os.path.join(os.getcwd(), rdir.base),
                          explicit_dependencies=plotting_nodes)
 
-workflow.save()
+if args.workflow_backend == 'slurm':
+    write_slurm_workflow(slurm_nodes, args, args.slurm_submit_file)
+else:
+    workflow.save()

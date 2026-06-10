@@ -30,6 +30,7 @@ import numpy
 import logging
 import h5py
 import configparser
+import shlex
 from scipy import spatial
 
 
@@ -175,6 +176,147 @@ def add_commands_to_cp(commands, options, cp, section_name):
                 else:
                     cp.set(section_name, command[2:], str(attr))
 
+def section_to_quoted_cli(cp, section, skip_opts=None):
+    """Convert a workflow config section to shell-quoted CLI arguments."""
+    if skip_opts is None:
+        skip_opts = []
+    args = []
+    for opt in cp.options(section):
+        if opt in skip_opts:
+            continue
+        args.append("--%s" % opt)
+        val = cp.get(section, opt)
+        if val != "":
+            args.append(val)
+    return " ".join(shlex.quote(str(arg)) for arg in args)
+
+def slurm_opt(flag, value):
+    if value is None:
+        return ""
+    return " %s=%s" % (flag, shlex.quote(str(value)))
+
+def write_slurm_workflow(cp, opts, num_banks, submit_file):
+    """Write a Slurm submitter for the eccentric aligned bank workflow."""
+    stack_dir = os.path.join(opts.storage_path_base, 'stack2d') \
+                if opts.storage_path_base else 'stack2d'
+    work_dir = opts.slurm_work_dir
+    log_dir = os.path.join(work_dir, 'logs')
+
+    output_bank = opts.output_file
+    chi_file = opts.print_chi_points
+    if chi_file is None:
+        chi_file = os.path.splitext(output_bank)[0] + '_chi_params.dat'
+    hist_file = os.path.splitext(output_bank)[0] + '_bank_verify.png'
+
+    stack_exe = cp.get('executables', 'aligned2dstack')
+    cat_exe = cp.get('executables', 'alignedbankcat')
+    chi_exe = cp.get('executables', 'dumptochis')
+    verify_exe = cp.get('executables', 'bankverify')
+
+    stack_opts = section_to_quoted_cli(cp, 'aligned2dstack')
+    cat_opts = section_to_quoted_cli(cp, 'alignedbankcat')
+    chi_opts = section_to_quoted_cli(cp, 'dumptochis')
+    verify_opts = section_to_quoted_cli(cp, 'bankverify')
+
+    array_spec = "0-%d" % (num_banks - 1)
+    if opts.slurm_array_concurrency is not None:
+        array_spec += "%%%d" % opts.slurm_array_concurrency
+
+    common_sbatch = ""
+    common_sbatch += slurm_opt("--account", opts.slurm_account)
+    common_sbatch += slurm_opt("--partition", opts.slurm_partition)
+    common_sbatch += slurm_opt("--qos", opts.slurm_qos)
+    if opts.slurm_extra_sbatch_args:
+        common_sbatch += " " + opts.slurm_extra_sbatch_args
+
+    stack_sbatch = common_sbatch
+    stack_sbatch += slurm_opt("--time", opts.slurm_stack_time)
+    stack_sbatch += slurm_opt("--mem", opts.slurm_stack_mem)
+    stack_sbatch += slurm_opt("--cpus-per-task", opts.slurm_stack_cpus)
+
+    cat_sbatch = common_sbatch
+    cat_sbatch += slurm_opt("--time", opts.slurm_cat_time)
+    cat_sbatch += slurm_opt("--mem", opts.slurm_cat_mem)
+    cat_sbatch += slurm_opt("--cpus-per-task", opts.slurm_cat_cpus)
+
+    post_sbatch = common_sbatch
+    post_sbatch += slurm_opt("--time", opts.slurm_post_time)
+    post_sbatch += slurm_opt("--mem", opts.slurm_post_mem)
+    post_sbatch += slurm_opt("--cpus-per-task", opts.slurm_post_cpus)
+
+    submit_text = """#!/usr/bin/env bash
+set -euo pipefail
+
+mkdir -p {stack_dir} {log_dir}
+
+STACK_JOB=$(sbatch --parsable{stack_sbatch} \\
+    --job-name={job_name}-stack \\
+    --array={array_spec} \\
+    --output={log_dir}/stack_%A_%a.out \\
+    --error={log_dir}/stack_%A_%a.err \\
+    --wrap={stack_wrap})
+
+CAT_JOB=$(sbatch --parsable{cat_sbatch} \\
+    --job-name={job_name}-cat \\
+    --dependency=afterok:${{STACK_JOB}} \\
+    --output={log_dir}/cat_%j.out \\
+    --error={log_dir}/cat_%j.err \\
+    --wrap={cat_wrap})
+
+CHI_JOB=$(sbatch --parsable{post_sbatch} \\
+    --job-name={job_name}-chi \\
+    --dependency=afterok:${{CAT_JOB}} \\
+    --output={log_dir}/chi_%j.out \\
+    --error={log_dir}/chi_%j.err \\
+    --wrap={chi_wrap})
+
+VERIFY_JOB=$(sbatch --parsable{post_sbatch} \\
+    --job-name={job_name}-verify \\
+    --dependency=afterok:${{CAT_JOB}} \\
+    --output={log_dir}/verify_%j.out \\
+    --error={log_dir}/verify_%j.err \\
+    --wrap={verify_wrap})
+
+echo "Submitted stack array: ${{STACK_JOB}}"
+echo "Submitted bank combine: ${{CAT_JOB}}"
+echo "Submitted chi params: ${{CHI_JOB}}"
+echo "Submitted verification: ${{VERIFY_JOB}}"
+""".format(
+        stack_dir=shlex.quote(stack_dir),
+        log_dir=shlex.quote(log_dir),
+        stack_sbatch=stack_sbatch,
+        cat_sbatch=cat_sbatch,
+        post_sbatch=post_sbatch,
+        job_name=shlex.quote(opts.slurm_job_name),
+        array_spec=shlex.quote(array_spec),
+        stack_wrap=shlex.quote(
+            "%s %s --input-file %s --split-bank-num ${SLURM_ARRAY_TASK_ID} "
+            "--output-file %s/job$(printf '%%05d' ${SLURM_ARRAY_TASK_ID}).hdf"
+            % (shlex.quote(stack_exe), stack_opts,
+               shlex.quote(opts.intermediate_data_file), shlex.quote(stack_dir))
+        ),
+        cat_wrap=shlex.quote(
+            "%s %s --input-glob '%s/*.hdf' --metadata-file %s "
+            "--output-file %s"
+            % (shlex.quote(cat_exe), cat_opts, stack_dir,
+               shlex.quote(opts.metadata_file), shlex.quote(output_bank))
+        ),
+        chi_wrap=shlex.quote(
+            "%s %s --input-bank %s --output-file %s"
+            % (shlex.quote(chi_exe), chi_opts,
+               shlex.quote(output_bank), shlex.quote(chi_file))
+        ),
+        verify_wrap=shlex.quote(
+            "%s %s --input-bank %s --histogram-output-file %s"
+            % (shlex.quote(verify_exe), verify_opts,
+               shlex.quote(output_bank), shlex.quote(hist_file))
+        ),
+    )
+
+    with open(submit_file, 'w') as fp:
+        fp.write(submit_text)
+    os.chmod(submit_file, 0o755)
+
 # Read command line options
 _desc = __doc__[1:]
 parser = argparse.ArgumentParser(description=_desc,
@@ -224,6 +366,51 @@ parser.add_argument("--supplement-config-file", action="append",
                     help="This can be used to add additional options to those "
                     "that this code will supply. If there are conflicts the "
                     "code will fail. Can be supplied multiple times.")
+parser.add_argument("--workflow-backend", choices=['pegasus', 'slurm'],
+                    default='pegasus',
+                    help="Workflow backend to generate. The default is "
+                    "pegasus. The slurm backend writes an sbatch submitter "
+                    "script instead of a Pegasus DAX.")
+parser.add_argument("--slurm-submit-file",
+                    default="submit_eccentric_aligned_bank_slurm.sh",
+                    help="Output path for the generated Slurm submitter when "
+                    "--workflow-backend slurm is used.")
+parser.add_argument("--slurm-work-dir", default="slurm",
+                    help="Directory used for Slurm logs.")
+parser.add_argument("--slurm-job-name", default="eccentric-bank",
+                    help="Base Slurm job name.")
+parser.add_argument("--slurm-account", default=None,
+                    help="Slurm account to pass to sbatch.")
+parser.add_argument("--slurm-partition", default=None,
+                    help="Slurm partition to pass to sbatch.")
+parser.add_argument("--slurm-qos", default=None,
+                    help="Slurm QOS to pass to sbatch.")
+parser.add_argument("--slurm-extra-sbatch-args", default=None,
+                    help="Additional raw arguments passed to every sbatch "
+                    "command in the generated submitter.")
+parser.add_argument("--slurm-array-concurrency", type=int, default=None,
+                    help="Maximum number of concurrent 2dstack array tasks.")
+parser.add_argument("--slurm-stack-time", default="04:00:00",
+                    help="Slurm time limit for 2dstack array tasks.")
+parser.add_argument("--slurm-cat-time", default="02:00:00",
+                    help="Slurm time limit for the bank concatenation task.")
+parser.add_argument("--slurm-post-time", default="01:00:00",
+                    help="Slurm time limit for chi-parameter and verification "
+                    "tasks.")
+parser.add_argument("--slurm-stack-mem", default="3000M",
+                    help="Slurm memory request for 2dstack array tasks.")
+parser.add_argument("--slurm-cat-mem", default="3000M",
+                    help="Slurm memory request for the bank concatenation task.")
+parser.add_argument("--slurm-post-mem", default="3000M",
+                    help="Slurm memory request for chi-parameter and "
+                    "verification tasks.")
+parser.add_argument("--slurm-stack-cpus", type=int, default=1,
+                    help="Slurm CPU request for each 2dstack task.")
+parser.add_argument("--slurm-cat-cpus", type=int, default=1,
+                    help="Slurm CPU request for the bank concatenation task.")
+parser.add_argument("--slurm-post-cpus", type=int, default=1,
+                    help="Slurm CPU request for chi-parameter and verification "
+                    "tasks.")
 
 pycbc.tmpltbank.insert_base_bank_options(parser)
 
@@ -589,6 +776,16 @@ temp_fp = open('temp.ini', 'w')
 cp.write(temp_fp)
 temp_fp.close()
 
+num_banks = int((len(newV1s) - 0.5)//opts.split_bank_num) + 1
+
+if opts.workflow_backend == 'slurm':
+    slurm_cp = WorkflowConfigParser(configFiles=['temp.ini'])
+    write_slurm_workflow(slurm_cp, opts, num_banks, opts.slurm_submit_file)
+    logging.info("GENERATION SUCCESSFUL.")
+    logging.info("Submit the resulting Slurm workflow with: %s",
+                 opts.slurm_submit_file)
+    raise SystemExit(0)
+
 opts.config_files=['temp.ini']
 opts.config_overrides = []
 opts.config_delete = []
@@ -605,7 +802,6 @@ else:
 
 stack_exe = GeomAligned2DStackExecutable(workflow.cp, 'aligned2dstack',
                                          ifos=workflow.ifos, out_dir=curr_dir)
-num_banks = int((len(newV1s) - 0.5)//opts.split_bank_num) + 1
 input_h5file = resolve_url_to_file(opts.intermediate_data_file)
 
 
