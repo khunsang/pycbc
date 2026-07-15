@@ -372,12 +372,13 @@ with ctx:
                               signal_sample_rate,
                               filter_N, options.filter_sample_rate)
 
+        s_norm = sigmasq(stilde, psd=psd,
+                         low_frequency_cutoff=options.filter_low_frequency_cutoff)
+
         noise_seed = None if options.noise_seed is None \
             else options.noise_seed + index
         stilde += frequency_noise_from_psd(psd, seed=noise_seed)
 
-        s_norm = sigmasq(stilde, psd=psd,
-                         low_frequency_cutoff=options.filter_low_frequency_cutoff)
         stilde /= psd
         signals.append((stilde, s_norm, [], signal_params))
         sig_m1.append(signal_params.mass1)
