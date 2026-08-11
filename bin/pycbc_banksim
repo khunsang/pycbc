@@ -29,6 +29,7 @@ from igwn_ligolw import lsctables
 from pycbc.pnutils import mass1_mass2_to_mchirp_eta
 from pycbc.pnutils import mass1_mass2_to_tau0_tau3
 from pycbc.pnutils import nearest_larger_binary_number
+from pycbc.conversions import mchirp_eccentric_from_mass1_mass2_eccentricity
 from pycbc.waveform import get_td_waveform, get_fd_waveform, td_approximants, fd_approximants
 from pycbc.waveform.utils import taper_timeseries
 from pycbc import DYN_RANGE_FAC
@@ -235,6 +236,13 @@ parser.add_argument("--mchirp-window", type=str, metavar="FRACTION",
                          "comma separated numbers to have different bounds "
                          "above and below the signal's, with below bound "
                          "listed first.")
+parser.add_argument("--eccentric-mchirp-window", type=str,
+                    metavar="FRACTION",
+                    help="Ignore templates whose eccentric chirp mass "
+                         "deviates from the signal's one more than given "
+                         "fraction. Provide two comma separated numbers "
+                         "to have different bounds above and below the "
+                         "signal's, with below bound listed first.")
 parser.add_argument("--tau0-window", type=float, metavar="TIME", default=None,
                     help="Ignore templates whose Newtonian order chirp time "
                          "(tau0) varies from the signals by more than the "
@@ -256,22 +264,28 @@ if options.psd_estimation:
 if options.total_mass_divide and options.highmass_approximant is None:
     parser.error("You must provide a highmass-approximant if you want total-mass-divide.")
 
-if options.mchirp_window is None:
-    def outside_mchirp_window(template_mchirp, signal_mchirp):
-        return False
-elif ',' in options.mchirp_window:
-    # asymmetric chirp mass window
-    mchirp_window_lower = float(options.mchirp_window.split(",")[0])
-    mchirp_window_upper = float(options.mchirp_window.split(",")[1])
-    def outside_mchirp_window(template_mchirp, signal_mchirp):
-        delta = (template_mchirp - signal_mchirp) / signal_mchirp
-        return delta > mchirp_window_upper or -delta > mchirp_window_lower
-else:
-    # symmetric chirp mass window
-    mchirp_window = float(options.mchirp_window)
-    def outside_mchirp_window(template_mchirp, signal_mchirp):
-        return abs(signal_mchirp - template_mchirp) > \
-                (mchirp_window * signal_mchirp)
+def make_fractional_window(window):
+    if window is None:
+        def outside_window(template_value, signal_value):
+            return False
+    elif ',' in window:
+        # asymmetric fractional window
+        window_lower = float(window.split(",")[0])
+        window_upper = float(window.split(",")[1])
+        def outside_window(template_value, signal_value):
+            delta = (template_value - signal_value) / signal_value
+            return delta > window_upper or -delta > window_lower
+    else:
+        # symmetric fractional window
+        window_width = float(window)
+        def outside_window(template_value, signal_value):
+            return abs(signal_value - template_value) > \
+                    (window_width * signal_value)
+    return outside_window
+
+outside_mchirp_window = make_fractional_window(options.mchirp_window)
+outside_eccentric_mchirp_window = make_fractional_window(
+    options.eccentric_mchirp_window)
 
 if options.tau0_window is None:
     def outside_tau0_window(template_tau0, signal_tau0, window):
@@ -339,6 +353,7 @@ with ctx:
     # Used for getting mchirp/tau0 later
     sig_m1 = []
     sig_m2 = []
+    sig_ecc = []
     prog = tqdm(total=len(signal_table), disable=(not options.verbose))
     for index, signal_params in enumerate(signal_table):
         prog.update(1)
@@ -372,19 +387,27 @@ with ctx:
         signals.append((stilde, s_norm, [], signal_params))
         sig_m1.append(signal_params.mass1)
         sig_m2.append(signal_params.mass2)
+        sig_ecc.append(getattr(signal_params, 'eccentricity', 0.0))
     prog.close()
     sig_m1 = array(sig_m1)
     sig_m2 = array(sig_m2)
+    sig_ecc = array(sig_ecc)
     sig_tau0, _ = mass1_mass2_to_tau0_tau3(sig_m1, sig_m2,
                                            options.filter_low_frequency_cutoff)
     sig_mchirp, _ = mass1_mass2_to_mchirp_eta(sig_m1, sig_m2)
+    sig_eccentric_mchirp = mchirp_eccentric_from_mass1_mass2_eccentricity(
+        sig_m1, sig_m2, sig_ecc)
 
     logging.info("Calculating Mchirp and Tau0")
     template_m1 = array([tp.mass1 for tp in template_table])
     template_m2 = array([tp.mass2 for tp in template_table])
+    template_ecc = array([getattr(tp, 'eccentricity', 0.0)
+                          for tp in template_table])
     template_tau0, _ = mass1_mass2_to_tau0_tau3(template_m1, template_m2,
                                                 options.filter_low_frequency_cutoff)
     template_mchirp, _ = mass1_mass2_to_mchirp_eta(template_m1, template_m2)
+    template_eccentric_mchirp = mchirp_eccentric_from_mass1_mass2_eccentricity(
+        template_m1, template_m2, template_ecc)
 
     logging.info("Calculating Overlaps")
 
@@ -414,6 +437,9 @@ with ctx:
                                                options.tau0_window)
             check_logic |= outside_mchirp_window(template_mchirp[index],
                                                  sig_mchirp[sidx])
+            check_logic |= outside_eccentric_mchirp_window(
+                template_eccentric_mchirp[index],
+                sig_eccentric_mchirp[sidx])
             if check_logic:
                 matches.append(0)
                 continue
